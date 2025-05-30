@@ -24,6 +24,7 @@ interface MultiStepFormContainerProps {
   onCancel?: () => void;
   isEditing?: boolean;
   isSubmitting?: boolean;
+  onStepChange?: (step: number) => void;
 }
 
 export function MultiStepFormContainer({
@@ -32,10 +33,11 @@ export function MultiStepFormContainer({
   onComplete,
   onCancel,
   isEditing = false,
-  isSubmitting = false
+  isSubmitting = false,
+  onStepChange
 }: MultiStepFormContainerProps) {
   const [currentStep, setCurrentStep] = useState(initialStep);
-  const { handleSubmit, trigger } = useFormContext<TrainingFormData>();
+  const { handleSubmit, trigger, formState: { isValid } } = useFormContext<TrainingFormData>();
   
   const childrenArray = Array.isArray(children) ? children : [children];
   const totalSteps = childrenArray.length;
@@ -43,42 +45,55 @@ export function MultiStepFormContainer({
   
   const handleNext = async () => {
     const fieldsToValidate = getStepFields(currentStep, isEditing);
-    const isValid = await trigger(fieldsToValidate);
-    if (isValid && currentStep < totalSteps) {
-      setCurrentStep(prev => prev + 1);
+    const isStepValid = await trigger(fieldsToValidate);
+    
+    if (isStepValid) {
+      if (currentStep < totalSteps) {
+        const newStep = currentStep + 1;
+        setCurrentStep(newStep);
+        onStepChange?.(newStep);
+      } else {
+        // Final step - submit the form
+        handleSubmit(onComplete)();
+      }
     }
   };
   
   const handleBack = () => {
     if (currentStep > 1) {
-      setCurrentStep(prev => prev - 1);
+      const newStep = currentStep - 1;
+      setCurrentStep(newStep);
+      onStepChange?.(newStep);
     }
   };
   
-  return cloneElement(currentChild, {
-    onNext: currentStep < totalSteps ? handleNext : handleSubmit(onComplete),
-    onBack: currentStep > 1 ? handleBack : undefined,
-    onCancel,
-    isEditing,
-    isSubmitting: currentStep === totalSteps && isSubmitting
-  });
+  return (
+    <div className="space-y-8">
+      {/* Current Step Component */}
+      {cloneElement(currentChild, {
+        onNext: handleNext,
+        onBack: currentStep > 1 ? handleBack : undefined,
+        onCancel,
+        isEditing,
+        isSubmitting: currentStep === totalSteps && isSubmitting
+      })}
+    </div>
+  );
 }
 
 // Helper function with the correct validation logic
 function getStepFields(step: number, isEditing = false): (keyof TrainingFormData)[] {
   switch (step) {
     case 1:
-      return ["title", "rationale", "trainingTagIds"]; 
+      return ["title", "rationale"]; // Made trainingTagIds optional
     case 2:
-      return ["countryIds", "cityIds"];
+      return ["countryIds", "regionIds", "zoneIds"]; // cityIds is optional
     case 3:
       return ["duration", "durationType", "trainingTypeId", "deliveryMethod"]; 
     case 4:
-      return ["ageGroupIds", "economicBackgroundIds", "academicQualificationIds", "genderPercentages", "totalParticipants"];
+      return ["ageGroupIds", "economicBackgroundIds", "academicQualificationIds", "totalParticipants"];
     case 5:
-      return isEditing 
-        ? ["trainingPurposeIds", "economicBackgroundIds", "academicQualificationIds"] 
-        : ["trainingPurposeIds"];
+      return ["trainingPurposeIds"];
     default:
       return [];
   }

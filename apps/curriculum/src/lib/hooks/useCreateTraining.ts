@@ -7,13 +7,30 @@ import { getCookie } from "@curriculum-services/auth"
 
 interface CreateTrainingData {
   title: string;
+  rationale: string;
+  trainingTagIds?: string[];
+  zoneIds: string[];
   cityIds: string[];
   duration: number;
   durationType: 'HOURS' | 'DAYS' | 'WEEKS' | 'MONTHS';
+  trainingTypeId: string;
+  deliveryMethod: 'BLENDED' | 'ONLINE' | 'VIRTUAL';
+  totalParticipants: number;
   ageGroupIds: string[];
-  targetAudienceGenders: ('MALE' | 'FEMALE' | 'OTHER')[];
+  genderPercentages: Array<{
+    gender: 'MALE' | 'FEMALE';
+    percentage: number;
+  }>;
   economicBackgroundIds: string[];
   academicQualificationIds: string[];
+  disabilityPercentages?: Array<{
+    disabilityId: string;
+    percentage: number;
+  }>;
+  marginalizedGroupPercentages?: Array<{
+    marginalizedGroupId: string;
+    percentage: number;
+  }>;
   trainingPurposeIds: string[];
 }
 

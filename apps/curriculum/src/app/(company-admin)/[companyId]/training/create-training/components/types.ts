@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export interface StepProps {
-  onNext: (data: any) => void;
+  onNext?: (data?: any) => void;
   onBack?: () => void;
   onCancel?: () => void;
   initialData?: {

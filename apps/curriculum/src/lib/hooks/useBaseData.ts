@@ -43,6 +43,9 @@ const getResponseKey = (type: BaseDataType) => {
   if (type === 'training-type') return 'trainingTypes';
   if (type === 'training-tag') return 'trainingTags';
   if (type === 'report-file-type') return 'reportFileTypes';
+  if (type==="zone") return "zones";
+  if (type==="region") return "regions";
+  
   // Default case for other types (fallback to the old pattern just in case)
   const typeStr = type as string;
   return typeStr

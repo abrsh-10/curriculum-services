@@ -1,235 +1,129 @@
 "use client"
 
-import { useState, useEffect, useRef, useReducer } from 'react'
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from '@/lib/utils'
 import { useBaseData } from '@/lib/hooks/useBaseData'
-import { useCities } from '@/lib/hooks/useCities'
 import { StepProps } from '../types'
-import { z } from 'zod'
-import { BaseItem } from '@/types/training-form'
+import { TrainingFormData } from '@/types/training-form'
 
-const locationSchema = z.object({
-  cityIds: z.array(z.string()).min(1, "At least one city must be selected"),
-  countryIds: z.array(z.string()).min(1, "At least one country must be selected")
-})
-
-type LocationFormData = z.infer<typeof locationSchema>
-
-interface City {
+interface BaseItem {
   id: string;
   name: string;
   description: string;
+}
+
+interface Region extends BaseItem {
   country: BaseItem;
 }
 
-// Action types for our reducer
-type LocationAction = 
-  | { type: 'SET_COUNTRIES', payload: string[] }
-  | { type: 'SET_CITIES', payload: City[] }
-  | { type: 'UPDATE_CITIES', payload: { cities: City[], countryIds: string[] } };
-
-// State for our reducer
-interface LocationState {
-  selectedCountryIds: string[];
-  availableCities: City[];
+interface Zone extends BaseItem {
+  region: BaseItem;
 }
 
-// Reducer function for managing related state
-function locationReducer(state: LocationState, action: LocationAction): LocationState {
-  switch (action.type) {
-    case 'SET_COUNTRIES':
-      // Only update if different from current state
-      if (JSON.stringify(state.selectedCountryIds) === JSON.stringify(action.payload)) {
-        return state;
-      }
-      return {
-        ...state,
-        selectedCountryIds: action.payload
-      };
-    case 'SET_CITIES':
-      // Only update if different from current state
-      if (JSON.stringify(state.availableCities) === JSON.stringify(action.payload)) {
-        return state;
-      }
-      return {
-        ...state,
-        availableCities: action.payload
-      };
-    case 'UPDATE_CITIES':
-      // Filter cities to only include those from selected countries
-      const filteredCities = action.payload.cities.filter(city => 
-        action.payload.countryIds.includes(city.country.id)
-      );
-      
-      // Deduplicate cities by id
-      const uniqueCities = filteredCities.filter((city, index, self) =>
-        index === self.findIndex(c => c.id === city.id)
-      );
-      
-      // Skip update if nothing changed
-      if (JSON.stringify(state.availableCities) === JSON.stringify(uniqueCities)) {
-        return state;
-      }
-      
-      return {
-        ...state,
-        availableCities: uniqueCities
-      };
-    default:
-      return state;
-  }
+interface City extends BaseItem {
+  zone?: BaseItem;
 }
 
-export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isEditing = false }: StepProps) {
-  // Track if this is first render
-  const isFirstRender = useRef(true);
-  const prevCountryIdsRef = useRef<string[]>([]);
-  
-  // Refs for popover state
-  const [open, setOpen] = useState(false);
+export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = false }: StepProps) {
+  const [openCountries, setOpenCountries] = useState(false);
+  const [openRegions, setOpenRegions] = useState(false);
+  const [openZones, setOpenZones] = useState(false);
   const [openCities, setOpenCities] = useState(false);
   
-  // Initialize with reducer instead of multiple useState calls
-  const [locationState, dispatch] = useReducer(locationReducer, {
-    selectedCountryIds: initialData?.countryIds || [],
-    availableCities: []
-  });
+  const { 
+    watch, 
+    setValue, 
+    formState: { errors } 
+  } = useFormContext<TrainingFormData>();
   
-  const { selectedCountryIds, availableCities } = locationState;
-  
-  // The react-hook-form setup
-  const {
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors }
-  } = useForm<LocationFormData>({
-    resolver: zodResolver(locationSchema),
-    defaultValues: {
-      cityIds: initialData?.cityIds || [],
-      countryIds: initialData?.countryIds || []
-    }
-  });
-
-  const selectedCityIds = watch('cityIds');
+  const selectedCountryIds = watch('countryIds') || [];
+  const selectedRegionIds = watch('regionIds') || [];
+  const selectedZoneIds = watch('zoneIds') || [];
+  const selectedCityIds = watch('cityIds') || [];
   
   // Fetch all available countries
-  const { data: allCountries, isLoading: isLoadingCountries } = useBaseData(
-    'country', 
-    { enabled: true }
-  )
+  const { data: allCountries, isLoading: isLoadingCountries } = useBaseData('country', { enabled: true });
   
-  // Fetch cities based on selected countries
-  const { 
-    data: fetchedCities, 
-    isLoading: isLoadingCities 
-  } = useCities(selectedCountryIds, { enabled: selectedCountryIds.length > 0 });
+  // Fetch regions based on selected countries
+  const { data: allRegions, isLoading: isLoadingRegions } = useBaseData('region', { enabled: true });
+  const availableRegions = (allRegions || []).filter((region: Region) => 
+    selectedCountryIds.includes(region.country.id)
+  );
   
-  // Get references to preloaded and fetched data
-  const preloadedCities = initialData?.preloadedCities || [];
+  // Fetch zones based on selected regions
+  const { data: allZones, isLoading: isLoadingZones } = useBaseData('zone', { enabled: true });
+  const availableZones = (allZones || []).filter((zone: Zone) => 
+    selectedRegionIds.includes(zone.region.id)
+  );
   
-  // Merge preloaded and fetched data for countries
-  const safeCountries = initialData?.preloadedCountries?.length 
-    ? [...(initialData.preloadedCountries || []), ...(allCountries || [])]
-        .filter((value, index, self) => 
-          index === self.findIndex((t) => t.id === value.id)
-        )
-    : allCountries || [];
-
-  // Process cities when they're fetched
-  useEffect(() => {
-    // Get all available cities (both preloaded and fetched)
-    const allCities = [...preloadedCities];
-    
-    // Add fetched cities that aren't already in the list
-    if (fetchedCities) {
-      fetchedCities.forEach(city => {
-        if (!allCities.some(c => c.id === city.id)) {
-          allCities.push(city);
-        }
-      });
-    }
-    
-    // Only filter cities by selected countries if we have both
-    if (allCities.length && selectedCountryIds.length) {
-      // Filter to only include cities from selected countries
-      dispatch({
-        type: 'UPDATE_CITIES',
-        payload: {
-          cities: allCities,
-          countryIds: selectedCountryIds
-        }
-      });
-    }
-  }, [fetchedCities, selectedCountryIds]); // React will dedupe this array
-
-  // Initialize form values on first render
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      prevCountryIdsRef.current = selectedCountryIds;
-      
-      // Ensure form values match our state
-      setValue('countryIds', selectedCountryIds);
-    }
-  }, []);
+  // Fetch cities based on selected zones (optional)
+  const { data: allCities, isLoading: isLoadingCities } = useBaseData('city', { enabled: true });
+  const availableCities = selectedZoneIds.length > 0 
+    ? (allCities || []).filter((city: City) => 
+        city.zone && selectedZoneIds.includes(city.zone.id)
+      )
+    : [];
 
   const handleSelectCountry = (countryId: string) => {
-    // First check if this would cause a change
     const isSelected = selectedCountryIds.includes(countryId);
     let newCountryIds: string[];
     
     if (isSelected) {
-      // Remove country
       newCountryIds = selectedCountryIds.filter(id => id !== countryId);
-      
-      // Also remove cities from this country
-      const currentCityIds = selectedCityIds || [];
-      const newCityIds = currentCityIds.filter(cityId => {
-        const city = availableCities.find(c => c.id === cityId);
-        return city && newCountryIds.includes(city.country.id);
-      });
-      
-      setValue('cityIds', newCityIds, { shouldValidate: true });
+      // Clear dependent selections
+      setValue('regionIds', [], { shouldValidate: true });
+      setValue('zoneIds', [], { shouldValidate: true });
+      setValue('cityIds', [], { shouldValidate: true });
     } else {
-      // Add country
       newCountryIds = [...selectedCountryIds, countryId];
     }
     
-    // Skip update if nothing changed
-    if (JSON.stringify(newCountryIds) === JSON.stringify(selectedCountryIds)) {
-      return;
+    setValue('countryIds', newCountryIds, { shouldValidate: true });
+  };
+
+  const handleSelectRegion = (regionId: string) => {
+    const isSelected = selectedRegionIds.includes(regionId);
+    let newRegionIds: string[];
+    
+    if (isSelected) {
+      newRegionIds = selectedRegionIds.filter(id => id !== regionId);
+      // Clear dependent selections
+      setValue('zoneIds', [], { shouldValidate: true });
+      setValue('cityIds', [], { shouldValidate: true });
+    } else {
+      newRegionIds = [...selectedRegionIds, regionId];
     }
     
-    // Update form values
-    setValue('countryIds', newCountryIds, { shouldValidate: true });
+    setValue('regionIds', newRegionIds, { shouldValidate: true });
+  };
+
+  const handleSelectZone = (zoneId: string) => {
+    const isSelected = selectedZoneIds.includes(zoneId);
+    let newZoneIds: string[];
     
-    // Update state
-    prevCountryIdsRef.current = newCountryIds;
-    dispatch({ type: 'SET_COUNTRIES', payload: newCountryIds });
+    if (isSelected) {
+      newZoneIds = selectedZoneIds.filter(id => id !== zoneId);
+      // Clear dependent selections
+      setValue('cityIds', [], { shouldValidate: true });
+    } else {
+      newZoneIds = [...selectedZoneIds, zoneId];
+    }
+    
+    setValue('zoneIds', newZoneIds, { shouldValidate: true });
   };
 
   const handleSelectCity = (cityId: string) => {
-    const currentCityIds = selectedCityIds || [];
-    const newCityIds = currentCityIds.includes(cityId)
-      ? currentCityIds.filter(id => id !== cityId)
-      : [...currentCityIds, cityId];
+    const isSelected = selectedCityIds.includes(cityId);
+    const newCityIds = isSelected
+      ? selectedCityIds.filter(id => id !== cityId)
+      : [...selectedCityIds, cityId];
     
     setValue('cityIds', newCityIds, { shouldValidate: true });
-  };
-
-  const onSubmit = (data: LocationFormData) => {
-    // Make sure both countryIds and cityIds are included
-    onNext({
-      ...data,
-      countryIds: selectedCountryIds
-    });
   };
 
   return (
@@ -239,30 +133,31 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
           Where will the training take place?
         </h2>
         <p className="lg:text-sm md:text-xs text-xs text-gray-500 text-center mb-8">
-          Enter brief description about this question here
+          Select the countries, regions, zones, and optionally cities
         </p>
       </div>
 
       <div className="max-w-xl mx-auto space-y-6">
+        {/* Countries */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Countries</label>
-          <Popover open={open} onOpenChange={setOpen}>
+          <label className="text-sm font-medium">Countries <span className="text-red-500">*</span></label>
+          <Popover open={openCountries} onOpenChange={setOpenCountries}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className="w-full justify-between py-6"
-                disabled={isLoadingCountries && !safeCountries?.length}
+                disabled={isLoadingCountries}
                 type="button"
               >
                 <div className="flex flex-wrap gap-1">
                   {selectedCountryIds.length > 0 ? (
                     selectedCountryIds.map(countryId => {
-                      const countryName = safeCountries.find((c: BaseItem) => c.id === countryId)?.name
+                      const country = allCountries?.find((c: BaseItem) => c.id === countryId);
                       return (
                         <Badge key={countryId} variant="pending">
-                          {countryName}
+                          {country?.name}
                         </Badge>
-                      )
+                      );
                     })
                   ) : (
                     "Select countries..."
@@ -273,7 +168,7 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
             </PopoverTrigger>
             <PopoverContent className="w-full p-0">
               <div className="max-h-[300px] overflow-auto">
-                {safeCountries.map((country: BaseItem) => (
+                {allCountries?.map((country: BaseItem) => (
                   <div
                     key={country.id}
                     className={cn(
@@ -299,28 +194,147 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
           )}
         </div>
 
+        {/* Regions */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Cities</label>
+          <label className="text-sm font-medium">Regions <span className="text-red-500">*</span></label>
+          <Popover open={openRegions} onOpenChange={setOpenRegions}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between py-6"
+                disabled={isLoadingRegions || !selectedCountryIds.length}
+                type="button"
+              >
+                <div className="flex flex-wrap gap-1">
+                  {selectedRegionIds.length > 0 ? (
+                    selectedRegionIds.map(regionId => {
+                      const region = availableRegions.find((r: Region) => r.id === regionId);
+                      return (
+                        <Badge key={regionId} variant="pending">
+                          {region?.name}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    "Select regions..."
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <div className="max-h-[300px] overflow-auto">
+                {availableRegions.length > 0 ? (
+                  availableRegions.map((region: Region) => (
+                    <div
+                      key={region.id}
+                      className={cn(
+                        "flex items-center px-4 py-2 cursor-pointer hover:bg-gray-100",
+                        selectedRegionIds.includes(region.id) && "bg-gray-100"
+                      )}
+                      onClick={() => handleSelectRegion(region.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedRegionIds.includes(region.id) ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {region.name} ({region.country.name})
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    {selectedCountryIds.length ? "No regions available for selected countries" : "Please select countries first"}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Zones */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Zones <span className="text-red-500">*</span></label>
+          <Popover open={openZones} onOpenChange={setOpenZones}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between py-6"
+                disabled={isLoadingZones || !selectedRegionIds.length}
+                type="button"
+              >
+                <div className="flex flex-wrap gap-1">
+                  {selectedZoneIds.length > 0 ? (
+                    selectedZoneIds.map(zoneId => {
+                      const zone = availableZones.find((z: Zone) => z.id === zoneId);
+                      return (
+                        <Badge key={zoneId} variant="pending">
+                          {zone?.name}
+                        </Badge>
+                      );
+                    })
+                  ) : (
+                    "Select zones..."
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <div className="max-h-[300px] overflow-auto">
+                {availableZones.length > 0 ? (
+                  availableZones.map((zone: Zone) => (
+                    <div
+                      key={zone.id}
+                      className={cn(
+                        "flex items-center px-4 py-2 cursor-pointer hover:bg-gray-100",
+                        selectedZoneIds.includes(zone.id) && "bg-gray-100"
+                      )}
+                      onClick={() => handleSelectZone(zone.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedZoneIds.includes(zone.id) ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {zone.name} ({zone.region.name})
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    {selectedRegionIds.length ? "No zones available for selected regions" : "Please select regions first"}
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Cities (Optional) */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Cities <span className="text-xs">(Optional)</span></label>
           <Popover open={openCities} onOpenChange={setOpenCities}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className="w-full justify-between py-6"
-                disabled={(isLoadingCities && !availableCities?.length) || !selectedCountryIds.length}
+                disabled={isLoadingCities || !selectedZoneIds.length}
                 type="button"
               >
                 <div className="flex flex-wrap gap-1">
-                  {selectedCityIds?.length > 0 ? (
+                  {selectedCityIds.length > 0 ? (
                     selectedCityIds.map(cityId => {
-                      const city = availableCities.find(c => c.id === cityId)
+                      const city = availableCities.find((c: City) => c.id === cityId);
                       return (
                         <Badge key={cityId} variant="pending">
                           {city?.name}
                         </Badge>
-                      )
+                      );
                     })
                   ) : (
-                    "Select cities..."
+                    "Select cities (optional)..."
                   )}
                 </div>
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
@@ -329,39 +343,32 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
             <PopoverContent className="w-full p-0">
               <div className="max-h-[300px] overflow-auto">
                 {availableCities.length > 0 ? (
-                  availableCities.map((city) => (
+                  availableCities.map((city: City) => (
                     <div
                       key={city.id}
                       className={cn(
                         "flex items-center px-4 py-2 cursor-pointer hover:bg-gray-100",
-                        selectedCityIds?.includes(city.id) && "bg-gray-100"
+                        selectedCityIds.includes(city.id) && "bg-gray-100"
                       )}
                       onClick={() => handleSelectCity(city.id)}
                     >
                       <Check
                         className={cn(
                           "mr-2 h-4 w-4",
-                          selectedCityIds?.includes(city.id) ? "opacity-100" : "opacity-0"
+                          selectedCityIds.includes(city.id) ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      {city.name} ({city.country.name})
+                      {city.name}
                     </div>
                   ))
-                ) : selectedCountryIds.length ? (
-                  <div className="px-4 py-3 text-sm text-gray-500">
-                    {isLoadingCities ? "Loading cities..." : "No cities available for selected countries"}
-                  </div>
                 ) : (
                   <div className="px-4 py-3 text-sm text-gray-500">
-                    Please select countries first
+                    {selectedZoneIds.length ? "No cities available for selected zones" : "Please select zones first"}
                   </div>
                 )}
               </div>
             </PopoverContent>
           </Popover>
-          {errors.cityIds && (
-            <p className="text-sm text-red-500">{errors.cityIds.message}</p>
-          )}
         </div>
 
         <div className="flex justify-between pt-8">
@@ -377,9 +384,9 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
                   </Button>
                 )}
                 <Button 
-                  onClick={handleSubmit(onSubmit)}
+                  onClick={onNext}
                   className="bg-blue-500 text-white px-8"
-                  disabled={!selectedCityIds?.length}
+                  disabled={!selectedZoneIds.length}
                   type="button"
                 >
                   Continue
@@ -392,9 +399,9 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
                 Back
               </Button>
               <Button 
-                onClick={handleSubmit(onSubmit)}
+                onClick={onNext}
                 className="bg-blue-500 text-white px-8"
-                disabled={!selectedCityIds?.length}
+                disabled={!selectedZoneIds.length}
                 type="button"
               >
                 Continue
@@ -404,5 +411,5 @@ export function CreateTrainingStep2({ onNext, onBack, initialData, onCancel, isE
         </div>
       </div>
     </div>
-  )
+  );
 } 

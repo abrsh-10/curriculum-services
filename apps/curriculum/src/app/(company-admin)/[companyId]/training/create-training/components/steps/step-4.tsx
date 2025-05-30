@@ -1,12 +1,11 @@
 "use client"
 
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useFormContext } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { useBaseData } from '@/lib/hooks/useBaseData'
 import { StepProps } from '../types'
-import { targetAudienceSchema, TargetAudienceFormData } from '@/types/training-form'
+import { TrainingFormData } from '@/types/training-form'
 import { useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -19,7 +18,6 @@ interface BaseItem {
   name: string
   description: string
 }
-
 
 export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isEditing = false }: StepProps) {
   // Only fetch data if not preloaded
@@ -47,34 +45,22 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
   const [openAcademicQualifications, setOpenAcademicQualifications] = useState(false)
 
   const {
-    handleSubmit,
     setValue,
     watch,
     register,
     formState: { errors }
-  } = useForm<TargetAudienceFormData>({
-    resolver: zodResolver(targetAudienceSchema),
-    defaultValues: {
-      economicBackgroundIds: initialData?.economicBackgroundIds || [],
-      academicQualificationIds: initialData?.academicQualificationIds || [],
-      ageGroupIds: initialData?.ageGroupIds || [],
-      totalParticipants: initialData?.totalParticipants || 0,
-      genderPercentages: initialData?.genderPercentages || [
-        { gender: "MALE", percentage: 50 },
-        { gender: "FEMALE", percentage: 50 }
-      ],
-      disabilityPercentages: initialData?.disabilityPercentages || [],
-      marginalizedGroupPercentages: initialData?.marginalizedGroupPercentages || []
-    }
-  })
+  } = useFormContext<TrainingFormData>()
 
-  const ageGroupIds = watch('ageGroupIds')
-  const economicBackgroundIds = watch('economicBackgroundIds')
-  const academicQualificationIds = watch('academicQualificationIds')
-  const genderPercentages = watch('genderPercentages')
-  const disabilityPercentages = watch('disabilityPercentages')
-  const marginalizedGroupPercentages = watch('marginalizedGroupPercentages')
-  const totalParticipants = watch('totalParticipants')
+  const ageGroupIds = watch('ageGroupIds') || []
+  const economicBackgroundIds = watch('economicBackgroundIds') || []
+  const academicQualificationIds = watch('academicQualificationIds') || []
+  const genderPercentages = watch('genderPercentages') || [
+    { gender: "MALE", percentage: 50 },
+    { gender: "FEMALE", percentage: 50 }
+  ]
+  const disabilityPercentages = watch('disabilityPercentages') || []
+  const marginalizedGroupPercentages = watch('marginalizedGroupPercentages') || []
+  const totalParticipants = watch('totalParticipants') || 0
 
   // Extract IDs for easier handling in UI
   const disabilityIds = disabilityPercentages?.map(d => d.disabilityId) || []
@@ -103,7 +89,7 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
 
   // Handle age group selection
   const handleAgeGroupChange = (value: string) => {
-    const currentAgeGroups = watch('ageGroupIds') || []
+    const currentAgeGroups = ageGroupIds || []
     const newAgeGroups = currentAgeGroups.includes(value)
       ? currentAgeGroups.filter(id => id !== value)
       : [...currentAgeGroups, value]
@@ -112,8 +98,16 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
   }
 
   // Handle economic background selection
-  const handleSelectEconomicBackground = (value: string) => {
-    setValue('economicBackgroundIds', [value], { shouldValidate: true })
+  const handleSelectEconomicBackground = (backgroundId: string) => {
+    let newBackgroundIds: string[]
+    
+    if (economicBackgroundIds.includes(backgroundId)) {
+      newBackgroundIds = economicBackgroundIds.filter(id => id !== backgroundId)
+    } else {
+      newBackgroundIds = [...economicBackgroundIds, backgroundId]
+    }
+    
+    setValue('economicBackgroundIds', newBackgroundIds, { shouldValidate: true })
   }
 
   // Handle gender slider changes
@@ -201,21 +195,12 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
     setValue('academicQualificationIds', newQualificationIds, { shouldValidate: true })
   }
 
-  const onSubmit = (data: TargetAudienceFormData) => {
-    // If male is 100%, only include male in the data
-    if (data.genderPercentages.find(g => g.gender === "MALE")?.percentage === 100) {
-      data.genderPercentages = [{ gender: "MALE", percentage: 100 }]
-    }
-    // If female is 100%, only include female in the data
-    else if (data.genderPercentages.find(g => g.gender === "FEMALE")?.percentage === 100) {
-      data.genderPercentages = [{ gender: "FEMALE", percentage: 100 }]
-    }
-    
-    onNext(data)
-  }
-
   // Calculate male percentage for the slider
   const malePercentage = genderPercentages?.find(g => g.gender === "MALE")?.percentage || 0
+
+  const handleContinue = () => {
+    onNext?.();
+  };
 
   return (
     <div className="space-y-8">
@@ -223,15 +208,17 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
         <h2 className="lg:text-2xl md:text-xl text-lg font-semibold mb-2 text-center">
           Who are the target audience?
         </h2>
-        <p className="lg:text-sm md:text-xs text-xs text-gray-500 text-center mb-8">
-          Enter brief description about this question here
+        <p className="lg:text-sm md:text-xs text-xs text-gray-500 text-center">
+          Define the characteristics of your target participants
         </p>
       </div>
 
-      <div className="max-w-xl mx-auto space-y-6">
+      <div className="flex flex-col max-w-xl mx-auto space-y-10 justify-center">
         {/* Total Participants */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Total Participants</label>
+          <label className="text-sm font-medium">
+            Total Participants <span className="text-red-500">*</span>
+          </label>
           <Input
             type="number"
             min={1}
@@ -244,9 +231,11 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
           )}
         </div>
 
-        {/* Age Group Selection - Popover Implementation */}
+        {/* Age Group Selection */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Age Group</label>
+          <label className="text-sm font-medium">
+            Age Group <span className="text-red-500">*</span>
+          </label>
           <Popover
             open={openAgeGroups}
             onOpenChange={setOpenAgeGroups}
@@ -260,14 +249,19 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
                 <div className="flex flex-wrap gap-1 items-center">
                   {ageGroupIds && ageGroupIds.length > 0 ? (
                     <>
-                      {ageGroupIds.map(id => {
+                      {ageGroupIds.slice(0, 1).map((id, index) => {
                         const ageGroup = safeAgeGroups.find((group: BaseItem) => group.id === id)
                         return ageGroup ? (
-                          <Badge key={id} variant="pending" className="rounded-sm text-xs">
+                          <Badge key={`age-${id}-${index}`} variant="pending" className="rounded-sm text-xs">
                             {ageGroup.name}
                           </Badge>
                         ) : null
                       })}
+                      {ageGroupIds.length > 1 && (
+                        <span className="text-sm text-gray-500 ml-1">
+                          + {ageGroupIds.length - 1} more
+                        </span>
+                      )}
                     </>
                   ) : (
                     "Select age groups..."
@@ -311,8 +305,6 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
         {/* Gender Distribution */}
         <div className="space-y-4">
           <label className="text-sm font-medium">Gender Distribution</label>
-
-          {/* Single gender slider instead of two separate ones */}
           <GenderSlider
             value={[malePercentage]}
             onValueChange={([value]) => handleGenderPercentageChange(value)}
@@ -321,7 +313,171 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
           />
         </div>
 
-        {/* Disabilities Selection */}
+        {/* Economic Backgrounds Selection */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            Economic Background <span className="text-red-500">*</span>
+          </label>
+          <Popover
+            open={openEconomicBackgrounds}
+            onOpenChange={setOpenEconomicBackgrounds}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between py-6"
+                type="button"
+              >
+                <div className="flex flex-wrap gap-1 items-center">
+                  {economicBackgroundIds && economicBackgroundIds.length > 0 ? (
+                    <>
+                      {economicBackgroundIds.slice(0, 1).map((id, index) => {
+                        const background = safeEconomicBackgrounds.find((item: BaseItem) => 
+                          item.id === id
+                        )
+                        return (
+                          <Badge key={`econ-${id}-${index}`} variant="pending" className="rounded-sm text-xs">
+                            {background?.name}
+                          </Badge>
+                        );
+                      })}
+                      {economicBackgroundIds.length > 1 && (
+                        <span className="text-sm text-gray-500 ml-1">
+                          + {economicBackgroundIds.length - 1} more
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "Select economic backgrounds..."
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <div className="max-h-[300px] overflow-auto">
+                {safeEconomicBackgrounds.length > 0 ? (
+                  safeEconomicBackgrounds.map((background: BaseItem) => (
+                    <div
+                      key={background.id}
+                      className={cn(
+                        "flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100",
+                        economicBackgroundIds.includes(background.id) &&
+                          "bg-gray-100"
+                      )}
+                      onClick={() =>
+                        handleSelectEconomicBackground(background.id)
+                      }
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          economicBackgroundIds.includes(background.id)
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {background.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-sm text-gray-500">
+                    No economic backgrounds available
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          {errors.economicBackgroundIds && (
+            <p className="text-sm text-red-500">
+              {errors.economicBackgroundIds.message}
+            </p>
+          )}
+        </div>
+
+        {/* Academic Qualifications Selection */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium">
+            Academic Qualifications <span className="text-red-500">*</span>
+          </label>
+          <Popover
+            open={openAcademicQualifications}
+            onOpenChange={setOpenAcademicQualifications}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full justify-between py-6"
+                type="button"
+              >
+                <div className="flex flex-wrap gap-1 items-center">
+                  {academicQualificationIds && academicQualificationIds.length > 0 ? (
+                    <>
+                      {academicQualificationIds.slice(0, 1).map((id, index) => {
+                        const qualification = safeAcademicQualifications.find((item: BaseItem) => 
+                          item.id === id
+                        )
+                        return (
+                          <Badge key={`acad-${id}-${index}`} variant="pending" className="rounded-sm text-xs">
+                            {qualification?.name}
+                          </Badge>
+                        );
+                      })}
+                      {academicQualificationIds.length > 1 && (
+                        <span className="text-sm text-gray-500 ml-1">
+                          + {academicQualificationIds.length - 1} more
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    "Select academic qualifications..."
+                  )}
+                </div>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0">
+              <div className="max-h-[300px] overflow-auto">
+                {safeAcademicQualifications.length > 0 ? (
+                  safeAcademicQualifications.map((qualification: BaseItem) => (
+                    <div
+                      key={qualification.id}
+                      className={cn(
+                        "flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100",
+                        academicQualificationIds.includes(qualification.id) &&
+                          "bg-gray-100"
+                      )}
+                      onClick={() =>
+                        handleSelectAcademicQualification(qualification.id)
+                      }
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          academicQualificationIds.includes(qualification.id)
+                            ? "opacity-100"
+                            : "opacity-0"
+                        )}
+                      />
+                      {qualification.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-sm text-gray-500">
+                    No academic qualifications available
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+          {errors.academicQualificationIds && (
+            <p className="text-sm text-red-500">
+              {errors.academicQualificationIds.message}
+            </p>
+          )}
+        </div>
+
+        {/* Disabilities Selection (Optional) */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Disabilities (Optional)</label>
           <Popover open={openDisabilities} onOpenChange={setOpenDisabilities}>
@@ -334,19 +490,19 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
                 <div className="flex flex-wrap gap-1 items-center">
                   {disabilityPercentages && disabilityPercentages.length > 0 ? (
                     <>
-                      {disabilityPercentages.slice(0, 2).map(dp => {
+                      {disabilityPercentages.slice(0, 1).map(dp => {
                         const disability = safeDisabilities.find((item: BaseItem) => 
                           item.id === dp.disabilityId
                         )
                         return (
-                          <Badge key={dp.disabilityId} variant="pending" className="mr-1 mb-1">
+                          <Badge key={dp.disabilityId} variant="pending" className="rounded-sm text-xs">
                             {disability?.name} ({dp.percentage}%)
                           </Badge>
                         )
                       })}
-                      {disabilityPercentages.length > 2 && (
+                      {disabilityPercentages.length > 1 && (
                         <span className="text-sm text-gray-500 ml-1">
-                          + {disabilityPercentages.length - 2} more
+                          + {disabilityPercentages.length - 1} more
                         </span>
                       )}
                     </>
@@ -412,7 +568,7 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
           </Popover>
         </div>
 
-        {/* Marginalized Groups Selection */}
+        {/* Marginalized Groups Selection (Optional) */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Marginalized Groups (Optional)</label>
           <Popover open={openMarginalizedGroups} onOpenChange={setOpenMarginalizedGroups}>
@@ -425,19 +581,19 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
                 <div className="flex flex-wrap gap-1 items-center">
                   {marginalizedGroupPercentages && marginalizedGroupPercentages.length > 0 ? (
                     <>
-                      {marginalizedGroupPercentages.slice(0, 2).map(mgp => {
+                      {marginalizedGroupPercentages.slice(0, 1).map(mgp => {
                         const group = safeMarginalizedGroups.find((item: BaseItem) => 
                           item.id === mgp.marginalizedGroupId
                         )
                         return (
-                          <Badge key={mgp.marginalizedGroupId} variant="pending" className="mr-1 mb-1">
+                          <Badge key={mgp.marginalizedGroupId} variant="pending" className="rounded-sm text-xs">
                             {group?.name} ({mgp.percentage}%)
                           </Badge>
                         )
                       })}
-                      {marginalizedGroupPercentages.length > 2 && (
+                      {marginalizedGroupPercentages.length > 1 && (
                         <span className="text-sm text-gray-500 ml-1">
-                          + {marginalizedGroupPercentages.length - 2} more
+                          + {marginalizedGroupPercentages.length - 1} more
                         </span>
                       )}
                     </>
@@ -503,200 +659,32 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
           </Popover>
         </div>
 
-        {/* Economic Backgrounds Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Economic Background</label>
-          <Popover
-            open={openEconomicBackgrounds}
-            onOpenChange={setOpenEconomicBackgrounds}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between py-6"
-                type="button"
-              >
-                <div className="flex flex-wrap gap-1 items-center">
-                  {economicBackgroundIds && economicBackgroundIds.length > 0 ? (
-                    <>
-                      {economicBackgroundIds.slice(0, 1).map((id, index) => {
-                        const background = safeEconomicBackgrounds.find((item: BaseItem) => 
-                          item.id === id
-                        )
-                        return (
-                          <Badge key={`econ-${id}-${index}`} variant="pending">
-                            {background?.name}
-                          </Badge>
-                        );
-                      })}
-                      {economicBackgroundIds.length > 1 && (
-                        <span className="text-sm text-gray-500 ml-1">
-                          + {economicBackgroundIds.length - 1} more
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    "Select economic backgrounds..."
-                  )}
-                </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {safeEconomicBackgrounds.length > 0 ? (
-                  safeEconomicBackgrounds.map((background: BaseItem) => (
-                    <div
-                      key={background.id}
-                      className={cn(
-                        "flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100",
-                        economicBackgroundIds.includes(background.id) &&
-                          "bg-gray-100"
-                      )}
-                      onClick={() =>
-                        handleSelectEconomicBackground(background.id)
-                      }
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          economicBackgroundIds.includes(background.id)
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {background.name}
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-2 text-sm text-gray-500">
-                    No economic backgrounds available
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-          {errors.economicBackgroundIds && (
-            <p className="text-sm text-red-500">
-              {errors.economicBackgroundIds.message}
-            </p>
-          )}
-        </div>
-
-        {/* Academic Qualifications Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Academic Qualifications</label>
-          <Popover
-            open={openAcademicQualifications}
-            onOpenChange={setOpenAcademicQualifications}
-          >
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full justify-between py-6"
-                type="button"
-              >
-                <div className="flex flex-wrap gap-1 items-center">
-                  {academicQualificationIds && academicQualificationIds.length > 0 ? (
-                    <>
-                      {academicQualificationIds.slice(0, 1).map((id, index) => {
-                        const qualification = safeAcademicQualifications.find((item: BaseItem) => 
-                          item.id === id
-                        )
-                        return (
-                          <Badge key={`acad-${id}-${index}`} variant="pending">
-                            {qualification?.name}
-                          </Badge>
-                        );
-                      })}
-                      {academicQualificationIds.length > 1 && (
-                        <span className="text-sm text-gray-500 ml-1">
-                          + {academicQualificationIds.length - 1} more
-                        </span>
-                      )}
-                    </>
-                  ) : (
-                    "Select academic qualifications..."
-                  )}
-                </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {safeAcademicQualifications.length > 0 ? (
-                  safeAcademicQualifications.map((qualification: BaseItem) => (
-                    <div
-                      key={qualification.id}
-                      className={cn(
-                        "flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100",
-                        academicQualificationIds.includes(qualification.id) &&
-                          "bg-gray-100"
-                      )}
-                      onClick={() =>
-                        handleSelectAcademicQualification(qualification.id)
-                      }
-                    >
-                      <Check
-                        className={cn(
-                          "mr-2 h-4 w-4",
-                          academicQualificationIds.includes(qualification.id)
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
-                      />
-                      {qualification.name}
-                    </div>
-                  ))
-                ) : (
-                  <div className="px-4 py-2 text-sm text-gray-500">
-                    No academic qualifications available
-                  </div>
-                )}
-              </div>
-            </PopoverContent>
-          </Popover>
-          {errors.academicQualificationIds && (
-            <p className="text-sm text-red-500">
-              {errors.academicQualificationIds.message}
-            </p>
-          )}
-        </div>
-
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-8">
-          {isEditing ? (
-            <>
-              <Button onClick={onBack} variant="outline" type="button">
-                Back
-              </Button>
-              <div className="flex gap-2">
-                {onCancel && (
-                  <Button onClick={onCancel} variant="outline" type="button">
-                    Cancel
-                  </Button>
-                )}
-                <Button
-                  onClick={handleSubmit(onSubmit)}
-                  className="bg-blue-500 text-white px-8"
-                  disabled={
-                    !ageGroupIds?.length ||
-                    !economicBackgroundIds?.length ||
-                    !academicQualificationIds?.length
-                  }
+        {isEditing ? (
+          <div className="flex justify-between pt-8 w-full">
+            <div>
+              {onBack && (
+                <Button 
+                  onClick={onBack} 
+                  variant="outline" 
                   type="button"
                 >
-                  Continue
+                  Back
                 </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <Button onClick={onBack} variant="outline" type="button">
-                Back
-              </Button>
-              <Button
-                onClick={handleSubmit(onSubmit)}
+              )}
+            </div>
+            <div className="flex gap-2">
+              {onCancel && (
+                <Button 
+                  onClick={onCancel} 
+                  variant="outline" 
+                  type="button"
+                >
+                  Cancel
+                </Button>
+              )}
+              <Button 
+                onClick={handleContinue}
                 className="bg-blue-500 text-white px-8"
                 disabled={
                   !ageGroupIds?.length ||
@@ -707,9 +695,33 @@ export function CreateTrainingStep4({ onNext, onBack, onCancel, initialData, isE
               >
                 Continue
               </Button>
-            </>
-          )}
-        </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-between pt-8 w-full">
+            {onBack && (
+              <Button 
+                onClick={onBack} 
+                variant="outline" 
+                type="button"
+              >
+                Back
+              </Button>
+            )}
+            <Button 
+              onClick={handleContinue}
+              className="bg-blue-500 text-white px-8"
+              disabled={
+                !ageGroupIds?.length ||
+                !economicBackgroundIds?.length ||
+                !academicQualificationIds?.length
+              }
+              type="button"
+            >
+              Continue
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

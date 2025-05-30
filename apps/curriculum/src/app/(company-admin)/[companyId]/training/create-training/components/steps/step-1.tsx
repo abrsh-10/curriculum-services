@@ -1,50 +1,32 @@
 'use client'
 
-import { useForm } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
+import { useFormContext } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { StepProps } from '../types'
-import { titleRationaleSchema, TitleRationaleFormData, BaseItem } from '@/types/training-form'
+import { TrainingFormData, BaseItem } from '@/types/training-form'
 import { useBaseData } from '@/lib/hooks/useBaseData'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from '@/lib/utils'
-import { useState } from 'react'
 
-interface Step1FormData extends TitleRationaleFormData {
-  trainingTagIds?: string[]; 
-}
-
-export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isEditing = false }: StepProps) {
-  const { data: trainingTags, isLoading } = useBaseData(
-    'training-tag', 
-    { enabled: !initialData?.preloadedTrainingTags?.length }
-  )
+export function CreateTrainingStep1({ onNext, onBack, onCancel, isEditing = false }: StepProps) {
+  const { data: trainingTags, isLoading } = useBaseData('training-tag', { enabled: true });
 
   const {
     register,
-    handleSubmit,
     watch,
     setValue,
     formState: { errors }
-  } = useForm<Step1FormData>({
-    resolver: zodResolver(titleRationaleSchema),
-    defaultValues: {
-      title: initialData?.title || '',
-      rationale: initialData?.rationale || '',
-      trainingTagIds: initialData?.trainingTagIds || []
-    }
-  })
+  } = useFormContext<TrainingFormData>();
 
-  const [openTrainingTags, setOpenTrainingTags] = useState(false)
+  const [openTrainingTags, setOpenTrainingTags] = useState(false);
 
-  const allTrainingTags = initialData?.preloadedTrainingTags || trainingTags || []
-  
-  const title = watch('title')
-  const rationale = watch('rationale')
-  const trainingTagIds = watch('trainingTagIds') || []
+  const title = watch('title');
+  const rationale = watch('rationale'); 
+  const trainingTagIds = watch('trainingTagIds') || [];
 
   const handleSelectTrainingTag = (tagId: string) => {
     let newTagIds: string[];
@@ -54,11 +36,7 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
       newTagIds = [...trainingTagIds, tagId];
     }
     setValue('trainingTagIds', newTagIds, { shouldValidate: true });
-  }
-
-  const onSubmit = (data: Step1FormData) => {
-    onNext({ ...data, trainingTagIds: data.trainingTagIds || [] });
-  }
+  };
 
   return (
     <div className="space-y-8">
@@ -67,13 +45,15 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
           What is the title, rationale and tags of the training?
         </h2>
         <p className="lg:text-sm md:text-xs text-xs text-gray-500 text-center">
-          Enter brief description about this question here
+          Provide basic information about your training program
         </p>
       </div>
 
       <div className="flex flex-col max-w-xl mx-auto space-y-10 justify-center">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Training Title</label>
+          <label className="text-sm font-medium">
+            Training Title <span className="text-red-500">*</span>
+          </label>
           <Input
             {...register('title')}
             placeholder="Enter a descriptive title for the training"
@@ -85,7 +65,7 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Training Rationale</label>
+          <label className="text-sm font-medium">Training Rationale <span className="text-red-500">*</span></label>
           <Input
             {...register('rationale')}
             placeholder="Explain the purpose and goals of this training"
@@ -97,7 +77,7 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium">Training Tags</label>
+          <label className="text-sm font-medium">Training Tags <span className="text-red-500">*</span></label>
           <Popover
             open={openTrainingTags}
             onOpenChange={setOpenTrainingTags}
@@ -107,18 +87,18 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
                 variant="outline"
                 className="w-full justify-between py-6"
                 type="button"
-                disabled={isLoading && !initialData?.preloadedTrainingTags?.length}
+                disabled={isLoading}
               >
                 <div className="flex flex-wrap gap-1 items-center">
                   {trainingTagIds && trainingTagIds.length > 0 ? (
                     <>
                       {trainingTagIds.slice(0, 3).map((id) => {
-                        const tag = allTrainingTags.find((item: BaseItem) => item.id === id)
+                        const tag = trainingTags?.find((item: BaseItem) => item.id === id);
                         return tag ? (
                           <Badge key={id} variant="pending" className="rounded-sm text-xs">
                             {tag.name}
                           </Badge>
-                        ) : null
+                        ) : null;
                       })}
                       {trainingTagIds.length > 3 && (
                         <span className="text-sm text-gray-500 ml-1">
@@ -135,8 +115,8 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
             </PopoverTrigger>
             <PopoverContent className="w-full p-0">
               <div className="max-h-[300px] overflow-auto">
-                {allTrainingTags.length > 0 ? (
-                  allTrainingTags.map((tag: BaseItem) => (
+                {trainingTags && trainingTags.length > 0 ? (
+                  trainingTags.map((tag: BaseItem) => (
                     <div
                       key={tag.id}
                       className={cn(
@@ -188,7 +168,7 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
                 </Button>
               )}
               <Button 
-                onClick={handleSubmit(onSubmit)}
+                onClick={onNext}
                 className="bg-blue-500 text-white px-8"
                 type="button"
                 disabled={!title?.trim() || !rationale?.trim()}
@@ -199,7 +179,7 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
           </div>
         ) : (
           <Button 
-            onClick={handleSubmit(onSubmit)}
+            onClick={onNext}
             className="bg-blue-500 text-white px-8 w-[25%] mx-auto"
             type="button"
             disabled={!title?.trim() || !rationale?.trim()}
@@ -209,5 +189,5 @@ export function CreateTrainingStep1({ onNext, onBack, onCancel, initialData, isE
         )}
       </div>
     </div>
-  )
+  );
 } 

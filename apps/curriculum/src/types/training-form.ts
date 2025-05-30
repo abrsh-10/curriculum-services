@@ -12,8 +12,10 @@ export type TitleRationaleFormData = z.infer<typeof titleRationaleSchema>
 
 // Step 2: Location
 export const locationSchema = z.object({
-  cityIds: z.array(z.string()).min(1, "At least one city is required"),
-  countryIds: z.array(z.string()).min(1, "At least one country is required")
+  countryIds: z.array(z.string()).min(1, "At least one country is required"),
+  regionIds: z.array(z.string()).min(1, "At least one region is required"),
+  zoneIds: z.array(z.string()).min(1, "At least one zone is required"),
+  cityIds: z.array(z.string()).optional()
 })
 
 export type LocationFormData = z.infer<typeof locationSchema>
