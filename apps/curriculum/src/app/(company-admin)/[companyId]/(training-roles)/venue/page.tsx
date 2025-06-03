@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { AddVenueDialog } from "./components/add-venue-dialog";
 import Image from 'next/image'
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { createVenueColumns } from "./components/venue-columns";
@@ -26,7 +25,6 @@ export default function VenuePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 500);
     const [zone, setZone] = useState<string>();
-    const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
 
     const { data, isLoading, error } = useVenues(page - 1, pageSize);
     const { deleteVenue, isLoading: isDeleting } = useDeleteVenue();
@@ -58,7 +56,8 @@ export default function VenuePage() {
 
     // Handle venue edit
     const handleEditVenue = useCallback((venue: Venue) => {
-        setEditingVenue(venue);
+        // TODO: Implement edit functionality - navigate to edit route
+        console.log("Edit venue:", venue);
     }, []);
 
     // Handle venue deletion
@@ -70,21 +69,16 @@ export default function VenuePage() {
         });
     }, [deleteVenue, router]);
 
-    // Reset editing venue state when dialog closes
-    const handleDialogClose = useCallback(() => {
-        setEditingVenue(null);
-    }, []);
+    // Navigate to add venue page
+    const handleAddVenue = useCallback(() => {
+        router.push(`/${companyId}/venue/add`);
+    }, [router, companyId]);
 
     // Create venue columns with edit and delete handlers
     const venueColumns = useMemo(() => createVenueColumns({
         onEdit: handleEditVenue,
         onDelete: handleDeleteVenue,
     }), [handleEditVenue, handleDeleteVenue]);
-
-    // Handle success callback for venue operations
-    const handleVenueSuccess = useCallback(() => {
-        router.refresh();
-    }, [router]);
 
     if (isLoading) {
         return <Loading />;
@@ -110,8 +104,17 @@ export default function VenuePage() {
         return (
             <div className="flex lg:px-16 md:px-14 px-4 w-full">
                 <div className="flex-1 py-4 md:pl-12 min-w-0">
-                    <h1 className="text-lg font-normal mb-6">Venues</h1>
-                    <div className="text-center py-40 bg-gray-50 rounded-lg border">
+                    <div className="flex items-center justify-between mb-6">
+                        <h1 className="text-lg font-normal">Venues</h1>
+                        <Button
+                            onClick={handleAddVenue}
+                            className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10"
+                        >
+                            <Plus className="h-4 w-4" />
+                            <span>Add Venue</span>
+                        </Button>
+                    </div>
+                    <div className="flex flex-col items-center justify-center text-center py-40 bg-gray-50 rounded-lg border">
                         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                             <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
@@ -119,6 +122,15 @@ export default function VenuePage() {
                         <p className="mt-1 text-sm text-gray-500">
                             Get started by adding a new training venue.
                         </p>
+                        <div className="mt-6">
+                            <Button
+                                onClick={handleAddVenue}
+                                className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2"
+                            >
+                                <Plus className="h-4 w-4" />
+                                <span>Add Your First Venue</span>
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -146,20 +158,13 @@ export default function VenuePage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <AddVenueDialog
-                        companyId={companyId}
-                        trigger={
-                            <Button
-                                className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10"
-                            >
-                                <Plus className="h-4 w-4" />
-                                <span>Add Venue</span>
-                            </Button>
-                        }
-                        onSuccess={handleVenueSuccess}
-                        venue={editingVenue}
-                        onClose={handleDialogClose}
-                    />
+                    <Button
+                        onClick={handleAddVenue}
+                        className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span>Add Venue</span>
+                    </Button>
                 </div>
 
                 <VenueDataTable

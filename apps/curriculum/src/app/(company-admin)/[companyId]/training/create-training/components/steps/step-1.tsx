@@ -5,7 +5,8 @@ import { useFormContext } from 'react-hook-form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { StepProps } from '../types'
-import { TrainingFormData, BaseItem } from '@/types/training-form'
+import { TrainingFormData } from '@/types/training-form'
+import { BaseItem } from '@/types/curriculum'
 import { useBaseData } from '@/lib/hooks/useBaseData'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Check, ChevronsUpDown } from "lucide-react"

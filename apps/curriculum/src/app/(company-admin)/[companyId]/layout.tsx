@@ -261,7 +261,7 @@ export default function CompanyAdminLayout({
       '/[companyId]/training/[trainingId]/evaluation/create',
       '/[companyId]/training/[trainingId]/evaluation/builder',
       '/[companyId]/training/[trainingId]/evaluation/[formId]',
-      '/[companyId]/training/[trainingId]/students/add',
+      '/[companyId]/training/[trainingId]/students/import',
       '/[companyId]/trainers/add',
       '/[companyId]/training/[trainingId]/sessions/add',
       '/[companyId]/training/[trainingId]/sessions/[sessionId]',

@@ -18,12 +18,21 @@ const trainerFormSchema = z.object({
   // Step 1: Personal Info
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  faydaId: z.string().optional(),
   dateOfBirth: z.date({ required_error: "Date of birth is required" }).optional(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { required_error: "Gender is required" }).optional(),
   
   // Step 2: Contact/Location
   email: z.string().email("Invalid email address").min(1, "Email is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+  
+  // Location fields - hierarchical structure
+  countryId: z.string().optional(),
+  regionId: z.string().optional(),
+  zoneId: z.string().min(1, "Zone is required"),
+  cityId: z.string().min(1, "City is required"),
+  woreda: z.string().optional(),
+  houseNumber: z.string().optional(),
   location: z.string().optional(),
   languageId: z.string().optional(),
 
@@ -57,10 +66,17 @@ export default function AddTrainerPage() {
     defaultValues: {
       firstName: "",
       lastName: "",
+      faydaId: "",
       gender: undefined,
       languageId: "",
       email: "",
       phoneNumber: "",
+      countryId: "",
+      regionId: "",
+      zoneId: "",
+      cityId: "",
+      woreda: "",
+      houseNumber: "",
       location: "",
       academicLevelId: "",
       experienceYears: 0,
@@ -85,7 +101,7 @@ export default function AddTrainerPage() {
     if (step === 1) {
       fieldsToValidate = ["firstName", "lastName", "email", "phoneNumber", "dateOfBirth"];
     } else if (step === 2) {
-      fieldsToValidate = ["academicLevelId", "experienceYears", "location", "languageId"];
+      fieldsToValidate = ["academicLevelId", "experienceYears", "zoneId", "cityId", "languageId"];
     }
 
     if (fieldsToValidate.length > 0) {
@@ -122,11 +138,16 @@ export default function AddTrainerPage() {
     const trainerData: CreateTrainerData = {
       firstName: values.firstName,
       lastName: values.lastName,
+      faydaId: values.faydaId || "",
       email: values.email,
       phoneNumber: values.phoneNumber,
       dateOfBirth: formattedDateOfBirth,
       gender: values.gender || "OTHER", // Default value
       languageId: values.languageId || "1", // Default value - may need adjustment
+      zoneId: values.zoneId,
+      cityId: values.cityId,
+      woreda: values.woreda || "",
+      houseNumber: values.houseNumber || "",
       location: values.location || "Ethiopia", // Default value
       academicLevelId: values.academicLevelId,
       trainingTagIds: values.trainingTagIds || [],

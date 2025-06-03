@@ -233,6 +233,40 @@ export function TrainingProfileView({ trainingProfile, onEdit }: TrainingProfile
             </AccordionContent>
           </AccordionItem>
 
+          {/* Attendance Requirement Section */}
+          <AccordionItem value="attendanceRequirement" className="border-[0.5px] border-[#CED4DA] rounded-md">
+            <AccordionTrigger className="bg-white data-[state=open]:bg-[#f7fbff] rounded-lg p-6 flex items-center justify-between hover:no-underline group">
+              <div className="flex items-center gap-3">
+                <span className="font-semibold text-md md:text-xl">Attendance Requirement</span>
+              </div>
+              <div className="text-gray-400 flex gap-2">
+                {canEdit && (
+                  <img 
+                    src="/edit.svg" 
+                    alt="" 
+                    className="w-5 h-5 cursor-pointer" 
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onEdit()
+                    }}
+                  />
+                )}
+                <ChevronRight className="h-5 w-5 transition-transform group-data-[state=open]:hidden text-black" />
+                <ChevronDown className="h-5 w-5 transition-transform hidden group-data-[state=open]:block text-black" />
+              </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="bg-white p-6">
+                <p className="text-gray-600 text-sm md:text-lg">
+                  {trainingProfile.attendanceRequirementPercentage !== null && trainingProfile.attendanceRequirementPercentage !== undefined
+                    ? `${trainingProfile.attendanceRequirementPercentage}% minimum attendance required`
+                    : 'No attendance requirement specified'
+                  }
+                </p>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
           {/* Professional Background Section (was Rationale) */}
           <AccordionItem value="professionalBackground" className="border-[0.5px] border-[#CED4DA] rounded-md">
             <AccordionTrigger className="bg-white data-[state=open]:bg-[#f7fbff] rounded-lg p-6 flex items-center justify-between hover:no-underline group">

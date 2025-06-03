@@ -3,10 +3,11 @@ import { z } from "zod"
 // Step 1: Personal Information
 export const personalInfoSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
+  middleName: z.string().optional(),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   dateOfBirth: z.date(),
-  gender: z.enum(["MALE", "FEMALE"]),
-  languageId: z.string().min(1, "Please select a language"),
+  gender: z.enum(["MALE", "FEMALE"]).optional(),
+  languageId: z.string().optional(),
   hasSmartphone: z.boolean(),
   smartphoneOwner: z.string().optional(),
 })
@@ -15,15 +16,17 @@ export const personalInfoSchema = z.object({
 export const contactInfoSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   contactPhone: z.string().min(9, "Phone number must be at least 9 digits"),
-  cityId: z.string().min(1, "Please select a city"),
-  subCity: z.string().min(1, "Please enter a subcity"),
+  countryId: z.string().optional(),
+  regionId: z.string().optional(),
+  zoneId: z.string().optional(),
+  cityId: z.string().optional(),
   woreda: z.string().min(1, "Please enter a woreda/kebele"),
   houseNumber: z.string().min(1, "Please enter your house number or building name"),
 })
 
 // Step 3: Education & Experience
 export const educationSchemaBase = z.object({
-  academicLevelId: z.string().min(1, "Please select your highest qualification"),
+  academicLevelId: z.string().optional(),
   fieldOfStudy: z.string().min(1, "Please enter your field of study"),
   hasTrainingExperience: z.boolean(),
   trainingExperienceDescription: z.string().optional(),
@@ -61,6 +64,49 @@ export const studentFormSchema = personalInfoSchema
   .merge(educationSchemaBase)
   .merge(emergencyContactSchema)
   .merge(additionalInfoSchemaBase) // Merge the base schema for step 5
+  // Refinement for required select fields
+  .refine(data => {
+    return data.gender && (data.gender === "MALE" || data.gender === "FEMALE");
+  }, {
+    message: "Please select a gender",
+    path: ["gender"],
+  })
+  .refine(data => {
+    return data.languageId && data.languageId.length > 0;
+  }, {
+    message: "Please select a language",
+    path: ["languageId"],
+  })
+  .refine(data => {
+    return data.countryId && data.countryId.length > 0;
+  }, {
+    message: "Please select a country",
+    path: ["countryId"],
+  })
+  .refine(data => {
+    return data.regionId && data.regionId.length > 0;
+  }, {
+    message: "Please select a region",
+    path: ["regionId"],
+  })
+  .refine(data => {
+    return data.zoneId && data.zoneId.length > 0;
+  }, {
+    message: "Please select a zone",
+    path: ["zoneId"],
+  })
+  .refine(data => {
+    return data.cityId && data.cityId.length > 0;
+  }, {
+    message: "Please select a city",
+    path: ["cityId"],
+  })
+  .refine(data => {
+    return data.academicLevelId && data.academicLevelId.length > 0;
+  }, {
+    message: "Please select your highest qualification",
+    path: ["academicLevelId"],
+  })
   // Refinement for training experience
   .refine(data => {
     if (data.hasTrainingExperience) {

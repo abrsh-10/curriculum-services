@@ -45,12 +45,6 @@ export interface Venue {
   hasParkingSpace?: boolean;
   parkingCapacity?: number;
   
-  // Step 4: Contact Information fields
-  contactPerson?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  availabilityNotes?: string;
-  additionalInformation?: string;
   isActive?: boolean;
 }
 
@@ -91,8 +85,8 @@ export interface VenueRequirementInput {
 export interface CreateVenueData {
   name: string;
   location: string;
+  zoneId: string;
   cityId: string;
-  zone: string;
   woreda: string;
   latitude?: number; 
   longitude?: number; 
@@ -108,12 +102,6 @@ export interface CreateVenueData {
   hasParkingSpace?: boolean;
   parkingCapacity?: number;
   
-  // Step 4: Contact Information fields
-  contactPerson?: string;
-  contactPhone?: string;
-  contactEmail?: string;
-  availabilityNotes?: string;
-  additionalInformation?: string;
   isActive?: boolean;
 }
 

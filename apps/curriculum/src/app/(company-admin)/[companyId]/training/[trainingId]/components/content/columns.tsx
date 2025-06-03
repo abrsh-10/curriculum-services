@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { ViewLinksModal } from "@/components/modals/view-links-modal"
 import { ContentApprovalModal } from "./content-approval-modal"
 import { useUserRole } from "@/lib/hooks/useUserRole"
+import { BookOpen, FolderOpen, ClipboardCheck, FileText } from "lucide-react"
 
 function ContentLinkCell({ content }: { content: Content }) {
   const [showLinkModal, setShowLinkModal] = useState(false)
@@ -95,12 +96,80 @@ export const columns: ColumnDef<Content>[] = [
     header: "Content For",
     cell: ({ row }) => {
       const content = row.original
-      return content.lessonName || content.sectionName || content.moduleName
+      
+      // Determine the content type and display appropriate information
+      if (content.contentLevel === 'ASSESSMENT' && content.assessmentName) {
+        return (
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="h-4 w-4 text-purple-500" />
+            <div>
+              <div className="font-medium">{content.assessmentName}</div>
+              <div className="text-xs text-gray-500">Assessment</div>
+            </div>
+          </div>
+        )
+      }
+      
+      if (content.contentLevel === 'LESSON' && content.lessonName) {
+        return (
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-4 w-4 text-blue-500" />
+            <div>
+              <div className="font-medium">{content.lessonName}</div>
+              <div className="text-xs text-gray-500">Lesson</div>
+            </div>
+          </div>
+        )
+      }
+      
+      if (content.contentLevel === 'MODULE' && content.moduleName) {
+        return (
+          <div className="flex items-center gap-2">
+            <FolderOpen className="h-4 w-4 text-green-500" />
+            <div>
+              <div className="font-medium">{content.moduleName}</div>
+              <div className="text-xs text-gray-500">Module</div>
+            </div>
+          </div>
+        )
+      }
+      
+      // Fallback for any other cases
+      return (
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4 text-gray-500" />
+          <div>
+            <div className="font-medium">{content.moduleName || content.lessonName || content.assessmentName || 'Unknown'}</div>
+            <div className="text-xs text-gray-500">{content.contentLevel}</div>
+          </div>
+        </div>
+      )
     }
   },
   {
     accessorKey: "description",
     header: "Description",
+  },
+  {
+    accessorKey: "contentLevel",
+    header: "Content Level",
+    cell: ({ row }) => {
+      const level = row.original.contentLevel
+      
+      return (
+        <Badge 
+          variant="secondary"
+          className={
+            level === 'ASSESSMENT' ? 'border-purple-200 text-purple-700 bg-purple-50' :
+            level === 'LESSON' ? 'border-blue-200 text-blue-700 bg-blue-50' :
+            level === 'MODULE' ? 'border-green-200 text-green-700 bg-green-50' :
+            'border-gray-200 text-gray-700 bg-gray-50'
+          }
+        >
+          {level.charAt(0) + level.slice(1).toLowerCase()}
+        </Badge>
+      )
+    }
   },
   {
     accessorKey: "contentDeveloper",

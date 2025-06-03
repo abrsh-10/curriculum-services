@@ -40,8 +40,8 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
       rationale: formData.rationale || '',
       trainingTagIds: formData.trainingTagIds || [],
       countryIds: formData.countryIds || [],
-      regionIds: [], // Initialize to empty as it's derived from location relationships
-      zoneIds: [], // Initialize to empty as it's derived from location relationships  
+      regionIds: formData.regionIds || [],
+      zoneIds: formData.zoneIds || [],
       cityIds: formData.cityIds || [],
       duration: formData.duration || 1,
       durationType: formData.durationType || 'DAYS',
@@ -61,7 +61,7 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
     }
   })
 
-  const handleStepSubmit = (stepData?: any) => {
+  const handleStepSubmit = () => {
     if (currentStep < 5) {
       setCurrentStep(currentStep + 1)
     } else {
@@ -75,7 +75,7 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
     console.log("Form values for API:", formValues)
     
     const apiData = formToApiData(formValues)
-    console.log("Transformed API data:", apiData)
+    // console.log("Transformed API data:", apiData)
     
     setIsSubmitting(true)
     
@@ -108,7 +108,21 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
       case 1:
         return <CreateTrainingStep1 {...stepProps} />
       case 2:
-        return <CreateTrainingStep2 {...stepProps} />
+        return (
+          <CreateTrainingStep2 
+            {...stepProps}
+            initialData={{
+              countryIds: formData.countryIds,
+              regionIds: formData.regionIds,
+              zoneIds: formData.zoneIds,
+              cityIds: formData.cityIds,
+              preloadedCountries: formData.preloadedCountries,
+              preloadedRegions: formData.preloadedRegions,
+              preloadedZones: formData.preloadedZones,
+              preloadedCities: formData.preloadedCities
+            }}
+          />
+        )
       case 3:
         return (
           <CreateTrainingStep3

@@ -1,4 +1,4 @@
-import { BaseItem } from "./training-form"; 
+import { BaseItem } from "./curriculum"; 
 
 export interface Training {
   id: string;
@@ -10,7 +10,31 @@ export interface Training {
     name: string;
     description: string;
     country: BaseItem;
+    zone?: {
+      id: string;
+      name: string;
+      description: string;
+      region: BaseItem;
+    };
   }[];
+  regions?: {
+    id: string;
+    name: string;
+    description: string;
+    country: BaseItem;
+  }[];
+  zones?: {
+    id: string;
+    name: string;
+    description: string;
+    region: {
+      id: string;
+      name: string;
+      description: string;
+      country: BaseItem;
+    };
+  }[];
+  countries?: BaseItem[];
   duration: number;
   durationType: "HOURS" | "DAYS" | "WEEKS" | "MONTHS";
   deliveryMethod?: "BLENDED" | "ONLINE" | "VIRTUAL";
@@ -41,14 +65,18 @@ export interface Training {
   // Fields used only in API requests, align with backend expectations
   cityIds?: string[];
   countryIds?: string[];
+  regionIds?: string[];
+  zoneIds?: string[];
   trainingTypeId?: string;
   trainingTagIds?: string[]; // Added for API request payload
   ageGroupIds?: string[];
   economicBackgroundIds?: string[];
   academicQualificationIds?: string[];
   trainingPurposeIds?: string[];
-  
-  // Special input formats for percentages in requests
-  disabilityPercentagesInput?: Array<{ disabilityId: string; percentage: number; }>;
-  marginalizedGroupPercentagesInput?: Array<{ marginalizedGroupId: string; percentage: number; }>;
+}
+
+// Type for API requests with ID-based percentages
+export interface TrainingUpdateRequest {
+  disabilityPercentages?: Array<{ disabilityId: string; percentage: number; }>;
+  marginalizedGroupPercentages?: Array<{ marginalizedGroupId: string; percentage: number; }>;
 }

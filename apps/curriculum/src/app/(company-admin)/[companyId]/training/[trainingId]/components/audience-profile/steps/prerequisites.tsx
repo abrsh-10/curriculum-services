@@ -16,7 +16,7 @@ interface BaseItem {
 interface PrerequisiteData {
   languageId?: string
   educationLevelId?: string
-  specificCoursesList?: string[]
+  specificCourseList?: string[]
   certifications?: string
   licenses?: string
   workExperienceId?: string
@@ -51,8 +51,8 @@ export function Prerequisites({
     initialData?.educationLevelId || ""
   );
   const [specificCourseList, setSpecificCourseList] = useState<string[]>(
-    initialData?.specificCoursesList?.length
-      ? initialData.specificCoursesList
+    initialData?.specificCourseList?.length
+      ? initialData.specificCourseList
       : [""]
   );
 
@@ -139,7 +139,7 @@ export function Prerequisites({
       await onSave({
         languageId: languageId || undefined,
         educationLevelId: educationLevelId || undefined,
-        specificCoursesList: specificCourseList.filter(
+        specificCourseList: specificCourseList.filter(
           (course) => course.trim() !== ""
         ),
         certifications: certifications || undefined,

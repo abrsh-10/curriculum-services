@@ -1,5 +1,5 @@
 interface TrainingNotFoundProps {
-  type: 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey'
+  type: 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
 }
 
 const messages = {
@@ -50,6 +50,10 @@ const messages = {
   survey: {
     title: 'Survey Not Found',
     description: 'We couldn\'t find any survey for this training.'
+  },
+  content: {
+    title: 'Content Not Found',
+    description: 'We couldn\'t find any content for this training.'
   }
 }
 

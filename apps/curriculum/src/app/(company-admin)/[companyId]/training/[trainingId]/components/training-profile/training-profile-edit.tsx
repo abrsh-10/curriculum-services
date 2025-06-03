@@ -43,6 +43,8 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
   const [selectedLearnerStylePreferences, setSelectedLearnerStylePreferences] = useState<string[]>([])
   const [hasPriorKnowledge, setHasPriorKnowledge] = useState<"Yes" | "No" | "">("")
   const [priorKnowledge, setPriorKnowledge] = useState<string[]>([])
+  const [attendanceRequirementPercentage, setAttendanceRequirementPercentage] = useState<number>(100)
+  const [hasSetAttendanceRequirement, setHasSetAttendanceRequirement] = useState<boolean>(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showSidebar, setShowSidebar] = useState(true)
   const [selectedAlignmentStandards, setSelectedAlignmentStandards] = useState<string[]>([])
@@ -112,6 +114,7 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
       items: [
         { label: "Keywords", isCompleted: keywords.some(keyword => keyword.trim() !== "") },
         { label: "Scope", isCompleted: scope.trim().length > 0 },
+        { label: "Attendance Requirement", isCompleted: hasSetAttendanceRequirement },
         { label: "Professional Background", isCompleted: professionalBackground.trim().length > 0 },
         { label: "Alignment With Standard", isCompleted: selectedAlignmentStandards.length > 0 }
       ]
@@ -139,7 +142,7 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
         }
       ]
     }
-  ], [keywords, scope, professionalBackground, selectedAlignmentStandards, selectedDeliveryTools, selectedLearnerTechRequirements, selectedInstructorTechRequirements, hasPriorKnowledge, priorKnowledge, selectedLearnerStylePreferences, objectiveData])
+  ], [keywords, scope, hasSetAttendanceRequirement, professionalBackground, selectedAlignmentStandards, selectedDeliveryTools, selectedLearnerTechRequirements, selectedInstructorTechRequirements, hasPriorKnowledge, priorKnowledge, selectedLearnerStylePreferences, objectiveData])
 
   // Initialize activeSection after outlineGroups is defined
   const [activeSection, setActiveSection] = useState("Keywords")
@@ -150,6 +153,8 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
       setKeywords(initialData.keywords && initialData.keywords.length > 0 ? initialData.keywords : [""])
       setScope(initialData.scope || "")
       setProfessionalBackground(initialData.professionalBackground || "")
+      setAttendanceRequirementPercentage(initialData.attendanceRequirementPercentage ?? 100)
+      setHasSetAttendanceRequirement(initialData.attendanceRequirementPercentage !== null && initialData.attendanceRequirementPercentage !== undefined)
       
       // Extract IDs from object arrays for the checkbox fields
       const alignmentIds = initialData.alignmentStandardIds || extractIds(initialData.alignmentsWithStandard)
@@ -348,6 +353,34 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
             placeholder="Enter scope details"
             className="min-h-[200px] w-full"
           />
+          </div>
+        )
+      case "Attendance Requirement":
+        return (
+          <div className="space-y-1">
+            <h3 className="text-lg font-medium">Attendance Requirement</h3>
+            <p className="text-[12.5px] text-[#99948E] pb-4">Set the minimum attendance percentage required for learners to complete this training successfully.</p>
+            <div className="space-y-2">
+              <label htmlFor="attendance-percentage" className="text-sm font-medium text-gray-700">
+                Minimum Attendance Percentage (%)
+              </label>
+              <Input
+                id="attendance-percentage"
+                type="number"
+                min="0"
+                max="100"
+                value={attendanceRequirementPercentage}
+                onChange={(e) => {
+                  setAttendanceRequirementPercentage(Number(e.target.value))
+                  setHasSetAttendanceRequirement(true)
+                }}
+                placeholder="Enter percentage (0-100)"
+                className="w-full max-w-xs"
+              />
+              <p className="text-xs text-gray-500">
+                Enter a value between 0 and 100. For example, 80 means learners must attend at least 80% of sessions.
+              </p>
+            </div>
           </div>
         )
       case "Professional Background":
@@ -618,6 +651,7 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
         trainingId,
         keywords: keywords.filter(k => k.trim() !== ''),
         scope: scope || null,
+        attendanceRequirementPercentage: attendanceRequirementPercentage,
         professionalBackground: professionalBackground || null,
         alignmentStandardIds: selectedAlignmentStandards.length > 0 ? selectedAlignmentStandards : null,
         deliveryToolIds: selectedDeliveryTools.length > 0 ? selectedDeliveryTools : null,
@@ -659,6 +693,7 @@ export function TrainingProfileEdit({ trainingId, initialData, onSave, onCancel 
         trainingId,
         keywords: keywords.filter(k => k.trim() !== ''),
         scope: scope || null,
+        attendanceRequirementPercentage: attendanceRequirementPercentage,
         professionalBackground: professionalBackground || null,
         alignmentStandardIds: selectedAlignmentStandards.length > 0 ? selectedAlignmentStandards : null,
         deliveryToolIds: selectedDeliveryTools.length > 0 ? selectedDeliveryTools : null,

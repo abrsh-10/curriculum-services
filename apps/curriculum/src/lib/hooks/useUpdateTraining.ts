@@ -1,7 +1,7 @@
 "use client"
 
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { Training } from "@/types/training"
+import { Training, TrainingUpdateRequest } from "@/types/training"
 import axios from "axios"
 import { toast } from "sonner"
 import { getCookie } from "@curriculum-services/auth"
@@ -14,7 +14,7 @@ interface UpdateTrainingResponse {
 
 interface UpdateTrainingData {
   id: string
-  data: Partial<Training>
+  data: Record<string, unknown>
 }
 
 export function useUpdateTraining() {
@@ -25,6 +25,8 @@ export function useUpdateTraining() {
       try {
         // Debug the data being sent
         console.log("Training update - sending data:", JSON.stringify(data, null, 2))
+        console.log("Disability percentages being sent:", data.disabilityPercentages)
+        console.log("Marginalized group percentages being sent:", data.marginalizedGroupPercentages)
         
         const token = getCookie('token');
         if (!token) {
@@ -45,7 +47,7 @@ export function useUpdateTraining() {
         )
 
         // Debug the response
-        console.log("Training update - received response:", JSON.stringify(response.data, null, 2))
+        //console.log("Training update - received response:", JSON.stringify(response.data, null, 2))
         
         return response.data
       } catch (error) {

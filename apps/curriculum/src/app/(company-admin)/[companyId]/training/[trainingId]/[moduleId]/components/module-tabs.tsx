@@ -13,24 +13,12 @@ export function ModuleTabs({ activeTab, onTabChange }: ModuleTabsProps) {
       src: "/moduleInfo.svg",
       srcActive: "/moduleInfoA.svg",
     },
-    // {
-    //   id: "section",
-    //   label: "Section",
-    //   src: "/section.svg",
-    //   srcActive: "/section-active.svg",
-    // },
 
     {
       id: "assessment-method",
       label: "Assessment Methods",
       src: "/curriculum.svg",
       srcActive: "/curriculum_active.svg",
-    },
-    {
-      id: "content",
-      label: "Content",
-      src: "/content.svg",
-      srcActive: "/content-active.svg",
     },
   ];
 

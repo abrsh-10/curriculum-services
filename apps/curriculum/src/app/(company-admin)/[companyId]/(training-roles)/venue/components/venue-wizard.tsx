@@ -24,8 +24,8 @@ const steps = [
 const defaultValues: VenueSchema = {
   name: "",
   location: "",
+  zoneId: "",
   cityId: "",
-  zone: "",
   woreda: "",
   latitude: undefined,
   longitude: undefined,
@@ -63,8 +63,8 @@ export const VenueWizard = memo(function VenueWizard({
       return {
         name: venue.name || "",
         location: venue.location || "",
+        zoneId: venue.city?.zone?.id || "",
         cityId: venue.city?.id || "",
-        zone: venue.zone || "",
         woreda: venue.woreda || "",
         latitude: venue.latitude,
         longitude: venue.longitude,
@@ -120,8 +120,8 @@ export const VenueWizard = memo(function VenueWizard({
     const formattedData: CreateVenueData = {
       name: values.name,
       location: values.location,
+      zoneId: values.zoneId,
       cityId: values.cityId,
-      zone: values.zone,
       woreda: values.woreda,
       latitude: values.latitude,
       longitude: values.longitude,
@@ -186,18 +186,22 @@ export const VenueWizard = memo(function VenueWizard({
       </div>
 
       {/* Form Content Area */}
-      <VenueWizardForm
-        form={form} 
-        currentStep={currentStep}
-        steps={steps}
-        nextStep={nextStep}
-        prevStep={prevStep}
-        onSubmit={onSubmit}
-        onCancel={onCancel}
-        isLoading={isLoading}
-        companyId={companyId}
-        isEditMode={isEditMode}
-      />
+      <div className="flex-1 min-h-0">
+        <VenueWizardForm
+          form={form} 
+          currentStep={currentStep}
+          steps={steps}
+          nextStep={nextStep}
+          prevStep={prevStep}
+          onSubmit={onSubmit}
+          onCancel={onCancel}
+          isLoading={isLoading}
+          companyId={companyId}
+          isEditMode={isEditMode}
+          initialCountryId={venue?.city?.zone?.region?.country?.id || ""}
+          initialRegionId={venue?.city?.zone?.region?.id || ""}
+        />
+      </div>
     </div>
   )
 }) 

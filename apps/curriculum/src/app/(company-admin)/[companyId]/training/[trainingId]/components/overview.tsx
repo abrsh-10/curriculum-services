@@ -147,12 +147,52 @@ export function Overview({ training }: { training: Training }) {
               </div>
             </AccordionTrigger>
             <AccordionContent>
-              <div className="bg-white p-6">
-                <p className="text-gray-600 text-sm md:text-lg">
-                  {training.cities.length > 0 
-                    ? training.cities.map(city => city.name).join(", ")
-                    : "N/A"}
-                </p>
+              <div className="bg-white p-6 space-y-4">
+                {/* Countries */}
+                {training.zones && training.zones.length > 0 && (
+                  <div>
+                    <h3 className="text-gray-700 font-medium mb-1">Countries:</h3>
+                    <p className="text-gray-600 text-sm md:text-lg">
+                      {[...new Set(training.zones.map(z => z.region.country.name))].join(", ")}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Regions */}
+                {training.zones && training.zones.length > 0 && (
+                  <div>
+                    <h3 className="text-gray-700 font-medium mb-1">Regions:</h3>
+                    <p className="text-gray-600 text-sm md:text-lg">
+                      {[...new Set(training.zones.map(z => z.region.name))].join(", ")}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Zones */}
+                {training.zones && training.zones.length > 0 && (
+                  <div>
+                    <h3 className="text-gray-700 font-medium mb-1">Zones:</h3>
+                    <p className="text-gray-600 text-sm md:text-lg">
+                      {training.zones.map(z => z.name).join(", ")}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Cities */}
+                {training.cities && training.cities.length > 0 && (
+                  <div>
+                    <h3 className="text-gray-700 font-medium mb-1">Cities:</h3>
+                    <p className="text-gray-600 text-sm md:text-lg">
+                      {training.cities.map(city => city.name).join(", ")}
+                    </p>
+                  </div>
+                )}
+                
+                {/* Fallback message */}
+                {(!training.zones || training.zones.length === 0) && 
+                 (!training.cities || training.cities.length === 0) && (
+                  <p className="text-gray-600 text-sm md:text-lg">N/A</p>
+                )}
               </div>
             </AccordionContent>
           </AccordionItem>

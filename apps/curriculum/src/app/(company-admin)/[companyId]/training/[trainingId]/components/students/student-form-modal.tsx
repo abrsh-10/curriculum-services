@@ -14,15 +14,31 @@ import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
 import { Loading } from "@/components/ui/loading"
 
+interface Country {
+  id: string
+  name: string
+  description: string
+}
+
+interface Region {
+  id: string
+  name: string
+  description: string
+  country: Country
+}
+
+interface Zone {
+  id: string
+  name: string
+  description: string
+  region: Region
+}
+
 interface City {
   id: string
   name: string
   description: string
-  country: {
-    id: string
-    name: string
-    description: string
-  }
+  zone?: Zone
 }
 
 interface Language {
@@ -61,6 +77,9 @@ interface StudentFormModalProps {
   validateStep: () => Promise<boolean>
   onSubmit: (values: StudentFormValues) => Promise<void>
   languages: Language[]
+  countries: Country[]
+  regions: Region[]
+  zones: Zone[]
   cities: City[]
   academicLevels: AcademicLevel[]
   disabilities: Disability[]
@@ -79,6 +98,9 @@ export function StudentFormModal({
   validateStep,
   onSubmit,
   languages,
+  countries,
+  regions,
+  zones,
   cities,
   academicLevels,
   disabilities,
@@ -114,8 +136,12 @@ export function StudentFormModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white z-10 pt-6 px-6 md:pt-8 md:px-8 rounded-t-lg">
-          <FormHeader onCancel={onClose} isEditing={isEditing} />
+          <FormHeader 
+            onCancel={onClose} 
+            isEditing={isEditing}
+          />
 
+          {/* Form stepper */}
           <div className="flex justify-center mb-6">
             <FormStepper currentStep={step} totalSteps={5} />
           </div>
@@ -136,7 +162,13 @@ export function StudentFormModal({
                     <PersonalInfoForm form={form} languages={languages} />
                   )}
                   {step === 2 && (
-                    <ContactInfoForm form={form} cities={cities} />
+                    <ContactInfoForm 
+                      form={form} 
+                      countries={countries}
+                      regions={regions}
+                      zones={zones}
+                      cities={cities} 
+                    />
                   )}
                   {step === 3 && (
                     <EducationForm

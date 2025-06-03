@@ -24,8 +24,8 @@ const venueCapacitySchema = z.object({
 export const venueSchema = z.object({
   name: z.string().min(1, "Venue name is required"),
   location: z.string().min(1, "Location is required"),
+  zoneId: z.string().min(1, "Zone is required"),
   cityId: z.string().min(1, "City is required"),
-  zone: z.string().min(1, "Zone is required"),
   woreda: z.string().min(1, "Woreda is required"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
@@ -41,7 +41,6 @@ export const venueSchema = z.object({
   hasParkingSpace: z.boolean().optional().default(false),
   parkingCapacity: z.number().min(0, "Parking capacity cannot be negative").optional(),
   
-  // No longer include contact information fields
   isActive: z.boolean().default(true),
 });
 

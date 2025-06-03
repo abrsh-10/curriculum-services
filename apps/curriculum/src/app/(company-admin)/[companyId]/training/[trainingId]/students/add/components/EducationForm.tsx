@@ -46,8 +46,7 @@ export function EducationForm({
               </FormDescription>
               <Select
                 onValueChange={field.onChange}
-                value={field.value || ''}
-                key={`academic-level-select-${field.value || 'empty'}`}
+                value={field.value || undefined}
               >
                 <FormControl>
                   <SelectTrigger className="h-12 text-sm md:text-md select-trigger">
@@ -79,7 +78,7 @@ export function EducationForm({
                 Enter your field of study.
               </FormDescription>
               <FormControl>
-                <Input {...field} className="h-12 text-sm md:text-md" />
+                <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -140,6 +139,7 @@ export function EducationForm({
               <FormControl>
                 <Textarea
                   {...field}
+                  value={field.value || ""}
                   placeholder="Describe your experience..."
                   className="min-h-[100px] text-sm md:text-md"
                 />

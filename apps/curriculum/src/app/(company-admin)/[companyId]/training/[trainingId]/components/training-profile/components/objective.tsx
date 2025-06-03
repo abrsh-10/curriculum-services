@@ -1,13 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { EditFormContainer } from "@/components/ui/edit-form-container"
-import { useCreateObjective, useUpdateObjective } from "@/lib/hooks/useObjective"
+import { useBulkCreateObjective, useBulkUpdateObjective, useDeleteObjective } from "@/lib/hooks/useObjective"
 import { toast } from "sonner"
-import { useCreateOutcome } from "@/lib/hooks/useOutcome"
 
 export interface ObjectiveFormData {
   generalObjective: string
@@ -33,155 +32,159 @@ interface ObjectiveProps {
 }
 
 interface SpecificObjective {
-  id: string
+  id?: string // Optional for new objectives
   definition: string
   outcomes: Array<{
-    id: string
+    id?: string // Optional for new outcomes
     definition: string
   }>
-  showNewOutcome?: boolean
 }
-
-interface Outcome {
-  id: string;
-  definition: string;
-}
-
-interface ExistingObjective {
-  isExisting: true;
-  id: string;
-  definition: string;
-  outcomes: Array<{ id: string; definition: string; }>;
-}
-
-interface NewObjective {
-  isExisting: false;
-  definition: string;
-  outcomes: string[];
-}
-
-type CombinedObjective = ExistingObjective | NewObjective;
 
 export function Objective({ trainingId, initialData, onSave, onCancel }: ObjectiveProps) {
   const [generalObjective, setGeneralObjective] = useState(initialData?.generalObjective?.definition || "")
-  const [newSpecificObjectives, setNewSpecificObjectives] = useState<Array<{
-    definition: string
-    outcomes: string[]
-  }>>([])
-  const [newOutcomes, setNewOutcomes] = useState<{[specificId: string]: string[]}>({})
+  const [specificObjectives, setSpecificObjectives] = useState<SpecificObjective[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const objectiveMutation = useCreateObjective()
-  const objectiveUpdateMutation = useUpdateObjective()
-  const outcomeMutation = useCreateOutcome()
+  const bulkCreateMutation = useBulkCreateObjective()
+  const bulkUpdateMutation = useBulkUpdateObjective()
+  const deleteMutation = useDeleteObjective()
+
+  // Initialize specific objectives from initial data
+  useEffect(() => {
+    if (initialData?.specificObjectives) {
+      setSpecificObjectives(
+        initialData.specificObjectives.map(obj => ({
+          id: obj.id,
+          definition: obj.definition,
+          outcomes: obj.outcomes.map(outcome => ({
+            id: outcome.id,
+            definition: outcome.definition
+          }))
+        }))
+      )
+    }
+  }, [initialData])
 
   const handleAddSpecificObjective = () => {
-    setNewSpecificObjectives(prev => [...prev, { 
+    setSpecificObjectives(prev => [...prev, { 
       definition: "", 
       outcomes: []
     }])
   }
 
-  const handleAddOutcomeToNew = (specificIndex: number) => {
-    setNewSpecificObjectives(prev => prev.map((obj, i) => 
+  const handleRemoveSpecificObjective = async (index: number) => {
+    const objective = specificObjectives[index]
+    
+    // If it's an existing objective (has ID), delete it from the server
+    if (objective.id) {
+      try {
+        await deleteMutation.mutateAsync({ 
+          objectiveId: objective.id, 
+          trainingId 
+        })
+        toast.success("Objective deleted successfully")
+      } catch (error: any) {
+        toast.error(error.message || "Failed to delete objective")
+        return // Don't remove from UI if server deletion failed
+      }
+    }
+    
+    // Remove from local state
+    setSpecificObjectives(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const handleUpdateSpecificObjective = (index: number, value: string) => {
+    setSpecificObjectives(prev => prev.map((obj, i) => 
+      i === index ? { ...obj, definition: value } : obj
+    ))
+  }
+
+  const handleAddOutcome = (specificIndex: number) => {
+    setSpecificObjectives(prev => prev.map((obj, i) => 
       i === specificIndex ? { 
         ...obj, 
-        outcomes: [...obj.outcomes, ""] 
+        outcomes: [...obj.outcomes, { definition: "" }] 
       } : obj
     ))
   }
 
-  const handleRemoveSpecificObjective = (index: number) => {
-    setNewSpecificObjectives(prev => prev.filter((_, i) => i !== index))
+  const handleUpdateOutcome = (specificIndex: number, outcomeIndex: number, value: string) => {
+    setSpecificObjectives(prev => prev.map((obj, i) => 
+      i === specificIndex ? {
+        ...obj,
+        outcomes: obj.outcomes.map((outcome, oi) => 
+          oi === outcomeIndex ? { ...outcome, definition: value } : outcome
+        )
+      } : obj
+    ))
   }
 
-  const handleAddOutcomeToExisting = (specificId: string) => {
-    setNewOutcomes(prev => ({
-      ...prev,
-      [specificId]: [...(prev[specificId] || []), ""]
-    }))
-  }
-
-  const handleUpdateNewOutcome = (specificId: string, index: number, value: string) => {
-    setNewOutcomes(prev => ({
-      ...prev,
-      [specificId]: prev[specificId].map((outcome, i) => i === index ? value : outcome)
-    }))
-  }
-
-  const handleRemoveNewOutcome = (specificId: string, index: number) => {
-    setNewOutcomes(prev => ({
-      ...prev,
-      [specificId]: prev[specificId].filter((_, i) => i !== index)
-    }))
+  const handleRemoveOutcome = (specificIndex: number, outcomeIndex: number) => {
+    setSpecificObjectives(prev => prev.map((obj, i) => 
+      i === specificIndex ? {
+        ...obj,
+        outcomes: obj.outcomes.filter((_, oi) => oi !== outcomeIndex)
+      } : obj
+    ))
   }
 
   const handleSave = async () => {
     try {
       setIsSubmitting(true)
 
-      let generalObjectiveId = initialData?.generalObjective?.id
-
-      // Handle General Objective - only create if it doesn't exist
-      if (!generalObjectiveId && generalObjective) {
-        const result = await objectiveMutation.mutateAsync({
-          data: { definition: generalObjective, trainingId },
-          isGeneral: true
-        })
-        generalObjectiveId = result.objective.id
-      } else if (generalObjectiveId && generalObjective !== initialData?.generalObjective?.definition) {
-        // Update existing general objective if changed
-        await objectiveUpdateMutation.mutateAsync({
-          objectiveId: generalObjectiveId,
-          data: { definition: generalObjective, trainingId },
-          isGeneral: true
-        })
-      }
-
-      // Handle new specific objectives and their outcomes
-      for (const newObj of newSpecificObjectives) {
-        if (newObj.definition) {
-          const result = await objectiveMutation.mutateAsync({
-            data: { definition: newObj.definition, trainingId },
-            isGeneral: false
-          })
-
-          // Create outcomes for this new specific objective
-          for (const outcome of newObj.outcomes) {
-            if (outcome.trim()) {
-              await outcomeMutation.mutateAsync({
-                definition: outcome,
-                trainingId,
-                objectiveId: result.objective.id
-              })
-            }
-          }
-        }
-      }
-
-      // Handle new outcomes for existing specific objectives
-      for (const [specificId, outcomes] of Object.entries(newOutcomes)) {
-        for (const outcome of outcomes) {
-          if (outcome.trim()) {
-            await outcomeMutation.mutateAsync({
-              definition: outcome,
-              trainingId,
-              objectiveId: specificId
-            })
-          }
-        }
-      }
-
-      toast.success("Saved successfully")
+      const isCreating = !initialData?.generalObjective?.id
       
-      // Only call onSave with empty data since everything is already saved
+      if (isCreating) {
+        // Use bulk create for new objectives
+        const createData = {
+          trainingId,
+          generalObjective,
+          specificObjectives: specificObjectives
+            .filter(obj => obj.definition.trim())
+            .map(obj => ({
+              specificObjective: obj.definition,
+              outcomes: obj.outcomes
+                .filter(outcome => outcome.definition.trim())
+                .map(outcome => outcome.definition)
+            }))
+        }
+
+        await bulkCreateMutation.mutateAsync(createData)
+      } else {
+        // Use bulk update for existing objectives
+        const updateData = {
+          generalObjectiveId: initialData!.generalObjective!.id,
+          generalObjective,
+          specificObjectives: specificObjectives
+            .filter(obj => obj.definition.trim())
+            .map(obj => ({
+              id: obj.id || "", // For new objectives without ID, the backend should handle this
+              specificObjective: obj.definition,
+              outcomes: obj.outcomes
+                .filter(outcome => outcome.definition.trim())
+                .map(outcome => ({
+                  id: outcome.id || "", // For new outcomes without ID, the backend should handle this
+                  definition: outcome.definition
+                }))
+            }))
+        }
+
+        await bulkUpdateMutation.mutateAsync({ 
+          data: updateData, 
+          trainingId 
+        })
+      }
+
+      toast.success("Objectives saved successfully")
+      
+      // Call onSave with empty data since everything is already saved
       onSave({ 
         generalObjective: "", 
         specificObjective: "",
         outcome: ""
       })
     } catch (error: any) {
-      toast.error(error.message)
+      toast.error(error.message || "Failed to save objectives")
     } finally {
       setIsSubmitting(false)
     }
@@ -205,65 +208,26 @@ export function Objective({ trainingId, initialData, onSave, onCancel }: Objecti
 
         {/* Specific Objectives Section */}
         <div className="space-y-4">
-          {/* All Specific Objectives (Both Existing and New) */}
-          {[
-            ...(initialData?.specificObjectives || []).map((specific) => ({
-              ...specific,
-              isExisting: true as const,
-            })),
-            ...newSpecificObjectives.map((obj) => ({
-              ...obj,
-              isExisting: false as const,
-            })),
-          ].map((obj: CombinedObjective, index) => (
-            <div
-              key={obj.isExisting ? obj.id : `new-${index}`}
-              className="space-y-2"
-            >
-              <div className="">
-                {
-                  <label className="text-sm font-medium mb-2 block">
-                    Specific Objective
-                  </label>
-                }
+          {specificObjectives.map((obj, index) => (
+            <div key={obj.id || `new-${index}`} className="space-y-2">
+              <div>
+                <label className="text-sm font-medium mb-2 block">
+                  Specific Objective
+                </label>
                 <div className="relative">
                   <Input
-                    value={obj.isExisting ? obj.definition : obj.definition}
-                    onChange={
-                      obj.isExisting
-                        ? undefined
-                        : (e) => {
-                            setNewSpecificObjectives((prev) =>
-                              prev.map((item, i) =>
-                                i ===
-                                index -
-                                  (initialData?.specificObjectives?.length || 0)
-                                  ? { ...item, definition: e.target.value }
-                                  : item
-                              )
-                            );
-                          }
-                    }
-                    placeholder={
-                      obj.isExisting ? undefined : "Enter specific objective"
-                    }
-                    readOnly={obj.isExisting}
+                    value={obj.definition}
+                    onChange={(e) => handleUpdateSpecificObjective(index, e.target.value)}
+                    placeholder="Enter specific objective"
                     className="pr-10"
                   />
                   <div className="absolute right-10 top-1/2 -translate-y-1/2 h-full w-[1px] bg-gray-200" />
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={
-                      obj.isExisting
-                        ? undefined
-                        : () =>
-                            handleRemoveSpecificObjective(
-                              index -
-                                (initialData?.specificObjectives?.length || 0)
-                            )
-                    }
+                    onClick={() => handleRemoveSpecificObjective(index)}
                     className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
+                    disabled={deleteMutation.isPending}
                   >
                     <img src="/delete.svg" alt="delete" className="w-4 h-4" />
                   </Button>
@@ -272,160 +236,37 @@ export function Objective({ trainingId, initialData, onSave, onCancel }: Objecti
 
               {/* Outcomes Section */}
               <div className="pl-8 space-y-2">
-                {obj.isExisting ? (
-                  <>
-                    {/* Existing Outcomes */}
-                    {obj.outcomes.map((outcome) => (
-                      <div key={outcome.id} className="">
-                        <label className="text-sm font-medium py-3 block">
-                          Outcomes
-                        </label>
-                        <div key={outcome.id} className="relative">
-                          <Input
-                            value={outcome.definition}
-                            readOnly
-                            className=""
-                          />
-                          <div className="absolute right-10 top-1/2 -translate-y-1/2 h-full w-[1px] bg-gray-200" />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
-                          >
-                            <img
-                              src="/delete.svg"
-                              alt="delete"
-                              className="w-4 h-4"
-                            />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {/* New outcomes for existing specific */}
-                    {obj.isExisting &&
-                      newOutcomes[obj.id]?.map((outcome, idx) => (
-                        <div key={`new-${idx}`} className="relative">
-                          <Input
-                            value={outcome}
-                            onChange={(e) =>
-                              handleUpdateNewOutcome(
-                                obj.id!,
-                                idx,
-                                e.target.value
-                              )
-                            }
-                            placeholder="Enter outcome"
-                            className="pr-10"
-                          />
-                          <div className="absolute right-10 top-1/2 -translate-y-1/2 h-full w-[1px] bg-gray-200" />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemoveNewOutcome(obj.id!, idx)}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
-                          >
-                            <img
-                              src="/delete.svg"
-                              alt="delete"
-                              className="w-4 h-4"
-                            />
-                          </Button>
-                        </div>
-                      ))}
-                    <Button
-                      onClick={() =>
-                        obj.isExisting && handleAddOutcomeToExisting(obj.id)
-                      }
-                      variant="link"
-                      className="text-brand"
-                    >
-                      + Add Outcome
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    {/* Outcomes for new specific objective */}
-                    {obj.outcomes.map(
-                      (outcome: string | Outcome, outcomeIndex) => {
-                        const specificIndex =
-                          index -
-                          (initialData?.specificObjectives?.length || 0);
-                        return (
-                          <div key={outcomeIndex} className="">
-                            <label className="text-sm font-medium py-3 block">
-                              Outcome
-                            </label>
-                            <div className="relative">
-                              <Input
-                                value={
-                                  typeof outcome === "string"
-                                    ? outcome
-                                    : outcome.definition
-                                }
-                                onChange={(e) => {
-                                  setNewSpecificObjectives((prev) =>
-                                    prev.map((item, i) =>
-                                      i === specificIndex
-                                        ? {
-                                            ...item,
-                                            outcomes: item.outcomes.map(
-                                              (o, oi) =>
-                                                oi === outcomeIndex
-                                                  ? e.target.value
-                                                  : o
-                                            ),
-                                          }
-                                        : item
-                                    )
-                                  );
-                                }}
-                                placeholder="Enter outcome"
-                                className="pr-10"
-                              />
-                              <div className="absolute right-10 top-1/2 -translate-y-1/2 h-full w-[1px] bg-gray-200" />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setNewSpecificObjectives((prev) =>
-                                    prev.map((item, i) =>
-                                      i === specificIndex
-                                        ? {
-                                            ...item,
-                                            outcomes: item.outcomes.filter(
-                                              (_, oi) => oi !== outcomeIndex
-                                            ),
-                                          }
-                                        : item
-                                    )
-                                  );
-                                }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
-                              >
-                                <img
-                                  src="/delete.svg"
-                                  alt="delete"
-                                  className="w-4 h-4"
-                                />
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      }
-                    )}
-                    <Button
-                      onClick={() =>
-                        handleAddOutcomeToNew(
-                          index - (initialData?.specificObjectives?.length || 0)
-                        )
-                      }
-                      variant="link"
-                      className="text-brand"
-                    >
-                      + Add Outcome
-                    </Button>
-                  </>
-                )}
+                {obj.outcomes.map((outcome, outcomeIndex) => (
+                  <div key={outcome.id || `outcome-${outcomeIndex}`}>
+                    <label className="text-sm font-medium py-3 block">
+                      Outcome
+                    </label>
+                    <div className="relative">
+                      <Input
+                        value={outcome.definition}
+                        onChange={(e) => handleUpdateOutcome(index, outcomeIndex, e.target.value)}
+                        placeholder="Enter outcome"
+                        className="pr-10"
+                      />
+                      <div className="absolute right-10 top-1/2 -translate-y-1/2 h-full w-[1px] bg-gray-200" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveOutcome(index, outcomeIndex)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full bg-red-50 hover:bg-red-100 p-0"
+                      >
+                        <img src="/delete.svg" alt="delete" className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                <Button
+                  onClick={() => handleAddOutcome(index)}
+                  variant="link"
+                  className="text-brand"
+                >
+                  + Add Outcome
+                </Button>
               </div>
             </div>
           ))}
@@ -448,13 +289,13 @@ export function Objective({ trainingId, initialData, onSave, onCancel }: Objecti
           <Button
             onClick={handleSave}
             className="bg-brand text-white"
-            disabled={!generalObjective || isSubmitting}
+            disabled={!generalObjective || isSubmitting || deleteMutation.isPending}
           >
             {isSubmitting
               ? "Saving..."
-              : initialData
-              ? "Edit"
-              : "Save and Continue"}
+              : initialData?.generalObjective?.id
+              ? "Update Objectives"
+              : "Save Objectives"}
           </Button>
         </div>
       </div>

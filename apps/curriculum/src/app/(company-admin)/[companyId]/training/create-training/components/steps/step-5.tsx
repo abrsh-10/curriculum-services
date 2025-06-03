@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useBaseData } from '@/lib/hooks/useBaseData'
 import { StepProps } from '../types'
-import { TrainingFormData, BaseItem } from '@/types/training-form'
+import { TrainingFormData } from '@/types/training-form'
+import { BaseItem } from '@/types/curriculum'
 
 export function CreateTrainingStep5({ onNext, onBack, onCancel, isSubmitting, isEditing = false }: StepProps) {
   const { data: trainingPurposes, isLoading } = useBaseData('training-purpose', { enabled: true });

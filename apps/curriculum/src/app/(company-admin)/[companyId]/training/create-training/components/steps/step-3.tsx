@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { StepProps } from '../types'
-import { TrainingFormData, BaseItem } from '@/types/training-form'
+import { TrainingFormData } from '@/types/training-form'
+import { BaseItem } from '@/types/curriculum'
 import { useBaseData } from '@/lib/hooks/useBaseData'
 
 export function CreateTrainingStep3({ onNext, onBack, onCancel, initialData, isEditing = false }: StepProps) {

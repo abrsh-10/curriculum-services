@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { Loading } from "@/components/ui/loading"
 
-export type TabType = 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey'
+export type TabType = 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
 
 interface TabConfig {
   id: TabType
@@ -21,14 +21,16 @@ const allTabs: TabConfig[] = [
   { id: 'audience', label: 'Audience Profile', icon: '/audienceProfile.svg', activeIcon: '/audience_active.svg' },
   { id: 'module', label: 'Module', icon: '/module.svg', activeIcon: '/module_active.svg' },
   { id: 'students', label: 'Students', icon: '/student.svg', activeIcon: '/stuedntActive.svg' },
-  { id: 'sessions', label: 'Sessions', icon: '/Schedule.svg', activeIcon: '/scheduleActive.svg' },
-  { id: 'attendance', label: 'Attendance', icon: '/attendance.svg', activeIcon: '/attendanceActive.svg' },
+  // { id: 'sessions', label: 'Sessions', icon: '/Schedule.svg', activeIcon: '/scheduleActive.svg' },
+  // { id: 'attendance', label: 'Attendance', icon: '/attendance.svg', activeIcon: '/attendanceActive.svg' },
   { id: 'assessment', label: 'Assessment', icon: '/curriculum.svg', activeIcon: '/curriculum_active.svg' },
   { id: 'cat', label: 'CAT', icon: '/section.svg', activeIcon: '/section-active.svg' },
   { id: 'survey', label: 'Survey', icon: '/survey.svg', activeIcon: '/surveyActive.svg' },
   { id: 'evaluation', label: 'Evaluation', icon: '/Evaluation.svg', activeIcon: '/EvaluationActive.svg' },
   { id: 'certificate', label: 'Certificates', icon: '/certificate.svg', activeIcon: '/certificateActive.svg' },
+  { id: 'content', label: 'Content', icon: '/content.svg', activeIcon: '/content-active.svg' },
 ]
+
 
 interface TrainingTabsProps {
   activeTab: TabType
@@ -54,7 +56,7 @@ export function TrainingTabs({ activeTab, onTabChange }: TrainingTabsProps) {
 
   let visibleTabs: TabConfig[] = []
 
-  if (isProjectManager || isCompanyAdmin) {
+  if (isCompanyAdmin) {
     visibleTabs = allTabs
   } else if (isMeExpert) {
     visibleTabs = allTabs.filter(tab => ['overview', 'evaluation'].includes(tab.id))
@@ -70,7 +72,10 @@ export function TrainingTabs({ activeTab, onTabChange }: TrainingTabsProps) {
     visibleTabs = allTabs.filter(tab => ['overview','profile', 'audience', 'module', 'attendance','students'].includes(tab.id))
   }
   else if (isContentDeveloper) {
-    visibleTabs = allTabs.filter(tab => ['overview','profile', 'audience', 'module'].includes(tab.id))
+    visibleTabs = allTabs.filter(tab => ['overview','profile', 'audience', 'module', 'content'].includes(tab.id))
+  }
+  else if (isProjectManager) {
+    visibleTabs = allTabs.filter(tab => !['content'].includes(tab.id))
   }
   else {
     visibleTabs = allTabs.filter(tab => tab.id === 'overview') 

@@ -6,7 +6,6 @@ import { TrainingProfile } from "./useTrainingProfile"
 import { getCookie } from "@curriculum-services/auth"
 
 
-
 export function useCreateTrainingProfile() {
   const queryClient = useQueryClient()
 
@@ -35,7 +34,7 @@ export function useUpdateTrainingProfile() {
 
   return useMutation({
     mutationFn: async (data: TrainingProfile) => {
-      const token = localStorage.getItem('auth_token')
+      const token = getCookie('token')
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API}/training/add-training-profile`,
         data,

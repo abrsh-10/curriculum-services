@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Content } from "@/lib/hooks/useContent"
 import { useAcceptContent, useRejectContent } from "@/lib/hooks/useContent"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2, AlertCircle, ExternalLink, CheckCircle, XCircle } from "lucide-react"
+import { Loader2, AlertCircle, ExternalLink, CheckCircle, XCircle, BookOpen, FolderOpen, ClipboardCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
@@ -158,7 +158,35 @@ export function ContentApprovalModal({ content, isOpen, onClose }: ContentApprov
               
               <div>
                 <h3 className="text-sm font-medium text-gray-500 mb-1">Content For</h3>
-                <p className="font-medium">{content.lessonName || content.sectionName || content.moduleName}</p>
+                <div className="flex items-center gap-2">
+                  {content.contentLevel === 'ASSESSMENT' && content.assessmentName ? (
+                    <>
+                      <ClipboardCheck className="h-4 w-4 text-purple-500" />
+                      <div>
+                        <p className="font-medium">{content.assessmentName}</p>
+                        <p className="text-xs text-gray-500">Assessment</p>
+                      </div>
+                    </>
+                  ) : content.contentLevel === 'LESSON' && content.lessonName ? (
+                    <>
+                      <BookOpen className="h-4 w-4 text-blue-500" />
+                      <div>
+                        <p className="font-medium">{content.lessonName}</p>
+                        <p className="text-xs text-gray-500">Lesson</p>
+                      </div>
+                    </>
+                  ) : content.contentLevel === 'MODULE' && content.moduleName ? (
+                    <>
+                      <FolderOpen className="h-4 w-4 text-green-500" />
+                      <div>
+                        <p className="font-medium">{content.moduleName}</p>
+                        <p className="text-xs text-gray-500">Module</p>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="font-medium text-gray-500">Unknown content target</p>
+                  )}
+                </div>
               </div>
               
               <div>

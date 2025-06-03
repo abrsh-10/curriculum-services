@@ -31,11 +31,49 @@ export interface Trainer {
   id: string
   firstName: string
   lastName: string
+  faydaId?: string
   email: string
   phoneNumber: string
   gender: "MALE" | "FEMALE" | "OTHER" // Assuming based on student type
   dateOfBirth: string // Assuming string format like 'YYYY-MM-DD'
   language: Language
+  zone?: {
+    id: string
+    name: string
+    description: string
+    region: {
+      id: string
+      name: string
+      description: string
+      country: {
+        id: string
+        name: string
+        description: string
+      }
+    }
+  }
+  city?: {
+    id: string
+    name: string
+    description: string
+    zone?: {
+      id: string
+      name: string
+      description: string
+      region: {
+        id: string
+        name: string
+        description: string
+        country: {
+          id: string
+          name: string
+          description: string
+        }
+      }
+    }
+  }
+  woreda?: string
+  houseNumber?: string
   location: string // Assuming string, adjust if it's an object
   academicLevel: AcademicLevel
   trainingTags: TrainingTag[]
@@ -58,11 +96,16 @@ interface TrainersResponse {
 export interface CreateTrainerData {
   firstName: string
   lastName: string
+  faydaId: string
   email: string
   phoneNumber: string
   gender: "MALE" | "FEMALE" | "OTHER"
   dateOfBirth: string // e.g., "2025-04-21"
   languageId: string
+  zoneId: string
+  cityId: string
+  woreda: string
+  houseNumber: string
   location: string
   academicLevelId: string
   trainingTagIds?: string[] // Optional based on example

@@ -8,6 +8,8 @@ export interface StepProps {
     rationale?: string;
     trainingTagIds?: string[];
     countryIds?: string[];
+    regionIds?: string[];
+    zoneIds?: string[];
     cityIds?: string[];
     duration?: number;
     durationType?: 'DAYS' | 'WEEKS' | 'MONTHS' | 'HOURS';
@@ -33,6 +35,8 @@ export interface StepProps {
     // Preloaded reference data to avoid unnecessary API calls
     preloadedTrainingTags?: any[];
     preloadedCountries?: any[];
+    preloadedRegions?: any[];
+    preloadedZones?: any[];
     preloadedCities?: any[];
     preloadedTrainingType?: any;
     preloadedTrainingTypes?: any[];

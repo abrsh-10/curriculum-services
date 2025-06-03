@@ -21,6 +21,7 @@ export function TrainingProfile({ trainingId }: TrainingProfileProps) {
   const isEmptyProfile = !trainingProfile || (
     (Array.isArray(trainingProfile.keywords) && trainingProfile.keywords.length === 0) &&
     (!trainingProfile.scope || trainingProfile.scope === null) &&
+    (!trainingProfile.attendanceRequirementPercentage || trainingProfile.attendanceRequirementPercentage === null) &&
     (!trainingProfile.rationale || trainingProfile.rationale === null) &&
     (
       !trainingProfile.alignmentsWithStandard || 

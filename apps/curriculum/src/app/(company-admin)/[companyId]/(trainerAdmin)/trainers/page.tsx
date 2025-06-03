@@ -6,7 +6,7 @@ import Link from "next/link"
 import { useTrainers, Trainer } from "@/lib/hooks/useTrainers"
 import { Loading } from "@/components/ui/loading"
 import { Button } from "@/components/ui/button"
-import { Plus, Search } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/lib/hooks/useDebounce"
 import { TrainerDataTable } from "./components/trainer-data-table" 
@@ -100,35 +100,56 @@ export default function TrainersPage() {
   }
 
   if (error) {
-    // Handle error state appropriately, e.g., show an error message
-    return <div className="text-center text-red-500 p-4">Error loading trainers: {error.message}</div>
-  }
-
-  // Empty State 
-  if (!isLoading && allFetchedTrainers.length === 0 && debouncedSearch === "") {
     return (
       <div className="flex lg:px-16 md:px-14 px-4 w-full">
         <div className="flex-1 py-4 md:pl-12 min-w-0">
           <h1 className="text-lg font-normal mb-6">Trainers</h1>
-          {isTrainerAdmin && (
-            <Button asChild className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 mb-6">
-              <Link href={addTrainerHref}>
-                <Plus className="h-4 w-4" />
-                <span>Add Trainer</span>
-              </Link>
-            </Button>
-          )}
-          <div className="text-center py-40 bg-[#fbfbfb] rounded-lg border-[0.1px]">
-            <h3 className="text-lg font-medium mb-2">No Trainers Added Yet</h3>
-            <p className="text-gray-500 text-sm mb-6 max-w-xs mx-auto">
-              Add trainers to manage their details and assign them to training programs.
+          <div className="text-center py-20 bg-gray-50 rounded-lg border">
+            <h3 className="text-lg font-medium mb-2">Error Loading Trainers</h3>
+            <p className="text-gray-500 text-sm">
+              There was a problem loading the trainers. Please try again later.
             </p>
-            {isTrainerAdmin && (
-              <Button asChild className="mt-4 bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white">
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const noTrainersAvailable = filteredTrainers.length === 0;
+
+  // Empty State 
+  if (noTrainersAvailable && !debouncedSearch && !isLoading) {
+    return (
+      <div className="flex lg:px-16 md:px-14 px-4 w-full">
+        <div className="flex-1 py-4 md:pl-12 min-w-0">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-lg font-normal">Trainers</h1>
+            {(isTrainerAdmin || isProjectManager) && (
+              <Button asChild className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10">
                 <Link href={addTrainerHref}>
-                  Add Trainer
+                  <Plus className="h-4 w-4" />
+                  <span>Add Trainer</span>
                 </Link>
               </Button>
+            )}
+          </div>
+          <div className="flex flex-col items-center justify-center text-center py-40 bg-gray-50 rounded-lg border">
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+            <h3 className="mt-2 text-lg font-medium text-gray-900">No Trainers Added Yet</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              Add trainers to manage their details and assign them to training programs.
+            </p>
+            {(isTrainerAdmin || isProjectManager) && (
+              <div className="mt-6">
+                <Button asChild className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2">
+                  <Link href={addTrainerHref}>
+                    <Plus className="h-4 w-4" />
+                    <span>Add Your First Trainer</span>
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
         </div>
@@ -161,8 +182,8 @@ export default function TrainersPage() {
               }}
             />
           </div>
-          {isTrainerAdmin || isProjectManager && (
-            <Button asChild className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2">
+          {(isTrainerAdmin || isProjectManager) && (
+            <Button asChild className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10">
               <Link href={addTrainerHref}>
                 <Plus className="h-4 w-4" />
                 <span>Add Trainer</span>
@@ -170,16 +191,26 @@ export default function TrainersPage() {
             </Button>
           )}
         </div>
+
+        {noTrainersAvailable && debouncedSearch && !isLoading && (
+          <div className="text-center py-20 bg-gray-50 rounded-lg border">
+            <h3 className="text-lg font-medium mb-2">No Trainers Found</h3>
+            <p className="text-gray-500 text-sm">
+              Your search for &quot;{debouncedSearch}&quot; did not match any trainers.
+            </p>
+          </div>
+        )}
         
-        {/* Use the TrainerDataTable */}
-        <TrainerDataTable
-          data={paginatedTrainers}
-          isLoading={isLoading}
-          pagination={paginationProps}
-          languages={languages || []}
-          academicLevels={academicLevels || []}
-          trainingTags={trainingTags || []}
-        />
+        {!noTrainersAvailable && (
+          <TrainerDataTable
+            data={paginatedTrainers}
+            isLoading={isLoading}
+            pagination={paginationProps}
+            languages={languages || []}
+            academicLevels={academicLevels || []}
+            trainingTags={trainingTags || []}
+          />
+        )}
       </div>
     </div>
   )

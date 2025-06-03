@@ -98,7 +98,6 @@ export function Content() {
       <ContentRequestModal 
         isOpen={showRequestModal}
         onClose={() => setShowRequestModal(false)}
-        moduleId={params.moduleId as string}
       />
     </div>
   )

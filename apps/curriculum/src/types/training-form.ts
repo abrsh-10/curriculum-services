@@ -1,5 +1,6 @@
 import { z } from "zod"
-import { Training } from "./training"
+import { Training, TrainingUpdateRequest } from "./training"
+import { BaseItem } from "./curriculum"
 
 // Step 1: Title, Rationale & Tags
 export const titleRationaleSchema = z.object({
@@ -68,14 +69,6 @@ export const trainingFormSchema = titleRationaleSchema
 
 export type TrainingFormData = z.infer<typeof trainingFormSchema>
 
-// Base item interface for reference data
-export interface BaseItem {
-  id: string
-  name: string
-  description: string
-  range?: string | null
-}
-
 // Interface for preloaded data in form components
 export interface PreloadedFormData extends Partial<TrainingFormData> {
   // Step 1
@@ -83,11 +76,19 @@ export interface PreloadedFormData extends Partial<TrainingFormData> {
   
   // Step 2
   preloadedCountries?: BaseItem[]
+  preloadedRegions?: BaseItem[]
+  preloadedZones?: BaseItem[]
   preloadedCities?: {
     id: string
     name: string
     description: string
     country: BaseItem
+    zone?: {
+      id: string
+      name: string
+      description: string
+      region: BaseItem
+    }
   }[]
   
   // Step 3
@@ -129,18 +130,92 @@ const normalizeDeliveryMethod = (value?: string): "BLENDED" | "ONLINE" | "VIRTUA
  * Transforms API Training data to form data format
  */
 export function apiToFormData(training: Training): PreloadedFormData {
-  // Extract country IDs from cities (ensuring uniqueness)
-  const extractedCountryIds = [...new Set(
-    training.cities
-      .map(c => c.country?.id)
-      .filter(Boolean) as string[]
-  )]
+  // Extract countries from zones (ensuring uniqueness)
+  const extractedCountryIds = [...new Set([
+    // From zones
+    ...(training.zones || []).map(z => z.region.country.id),
+    // From cities as fallback - cities have country property directly
+    // @ts-expect-error - city.country exists in the actual API response
+    ...training.cities.map(c => c.zone?.region.country.id || c.country?.id).filter(Boolean)
+  ] as string[])]
   
-  // Extract countries from cities
-  const extractedCountries = extractedCountryIds.map(id => {
-    const city = training.cities.find(c => c.country?.id === id)
-    return city?.country
-  }).filter(Boolean) as BaseItem[]
+  // Extract countries objects
+  const extractedCountries: BaseItem[] = []
+  const countryMap = new Map<string, BaseItem>()
+  
+  // Add countries from zones
+  ;(training.zones || []).forEach(zone => {
+    if (zone.region.country && !countryMap.has(zone.region.country.id)) {
+      countryMap.set(zone.region.country.id, zone.region.country)
+    }
+  })
+  
+  // Add countries from cities as fallback
+  training.cities.forEach(city => {
+    // @ts-expect-error - city.country exists in the actual API response
+    const country = city.zone?.region.country || city.country
+    if (country && !countryMap.has(country.id)) {
+      countryMap.set(country.id, country)
+    }
+  })
+  
+  extractedCountries.push(...countryMap.values())
+
+  // Extract regions from zones (ensuring uniqueness)
+  const extractedRegionIds = [...new Set([
+    // From zones
+    ...(training.zones || []).map(z => z.region.id),
+    // From cities as fallback
+    ...training.cities.map(c => c.zone?.region.id).filter(Boolean)
+  ] as string[])]
+  
+  // Extract region objects
+  const extractedRegions: BaseItem[] = []
+  const regionMap = new Map<string, BaseItem>()
+  
+  // Add regions from zones
+  ;(training.zones || []).forEach(zone => {
+    if (zone.region && !regionMap.has(zone.region.id)) {
+      regionMap.set(zone.region.id, zone.region)
+    }
+  })
+  
+  // Add regions from cities as fallback
+  training.cities.forEach(city => {
+    if (city.zone?.region && !regionMap.has(city.zone.region.id)) {
+      regionMap.set(city.zone.region.id, city.zone.region)
+    }
+  })
+  
+  extractedRegions.push(...regionMap.values())
+
+  // Extract zone IDs from training.zones and cities
+  const extractedZoneIds = [...new Set([
+    // From zones array (primary source)
+    ...(training.zones || []).map(z => z.id),
+    // From cities as fallback
+    ...training.cities.map(c => c.zone?.id).filter(Boolean)
+  ] as string[])]
+  
+  // Extract zone objects 
+  const extractedZones: BaseItem[] = []
+  const zoneMap = new Map<string, BaseItem>()
+  
+  // Add zones from training.zones (primary source)
+  ;(training.zones || []).forEach(zone => {
+    if (!zoneMap.has(zone.id)) {
+      zoneMap.set(zone.id, zone)
+    }
+  })
+  
+  // Add zones from cities as fallback
+  training.cities.forEach(city => {
+    if (city.zone && !zoneMap.has(city.zone.id)) {
+      zoneMap.set(city.zone.id, city.zone)
+    }
+  })
+  
+  extractedZones.push(...zoneMap.values())
   
   // Transform the disability percentages
   const transformedDisabilityPercentages = Array.isArray(training.disabilityPercentages) 
@@ -185,8 +260,12 @@ export function apiToFormData(training: Training): PreloadedFormData {
     
     // Step 2
     countryIds: extractedCountryIds,
+    regionIds: extractedRegionIds,
+    zoneIds: extractedZoneIds,
     cityIds: training.cities.map(c => c.id),
     preloadedCountries: extractedCountries,
+    preloadedRegions: extractedRegions,
+    preloadedZones: extractedZones,
     preloadedCities: training.cities,
     
     // Step 3
@@ -222,8 +301,8 @@ export function apiToFormData(training: Training): PreloadedFormData {
 /**
  * Transforms form data to API format for updating
  */
-export function formToApiData(formData: Partial<TrainingFormData>): Partial<Training> {
-  const apiData: Partial<Training> = {}
+export function formToApiData(formData: Partial<TrainingFormData>): Record<string, unknown> {
+  const apiData: Record<string, unknown> = {}
   
   // Always include these core fields if available
   if (formData.title !== undefined) {
@@ -236,6 +315,18 @@ export function formToApiData(formData: Partial<TrainingFormData>): Partial<Trai
   
   if (formData.trainingTypeId !== undefined) {
     apiData.trainingTypeId = formData.trainingTypeId
+  }
+  
+  if (formData.countryIds !== undefined) {
+    apiData.countryIds = formData.countryIds
+  }
+  
+  if (formData.regionIds !== undefined) {
+    apiData.regionIds = formData.regionIds
+  }
+  
+  if (formData.zoneIds !== undefined) {
+    apiData.zoneIds = formData.zoneIds
   }
   
   if (formData.cityIds !== undefined) {
@@ -274,17 +365,17 @@ export function formToApiData(formData: Partial<TrainingFormData>): Partial<Trai
     apiData.genderPercentages = formData.genderPercentages
   }
   
-  // Map the disability percentages to the format expected by the API
+  // Map the disability percentages to the format expected by the API (ID-based for requests)
   if (formData.disabilityPercentages !== undefined) {
-    apiData.disabilityPercentagesInput = formData.disabilityPercentages.map(dp => ({
+    apiData.disabilityPercentages = formData.disabilityPercentages.map(dp => ({
       disabilityId: dp.disabilityId,
       percentage: dp.percentage
     }))
   }
   
-  // Map the marginalized group percentages to the format expected by the API
+  // Map the marginalized group percentages to the format expected by the API (ID-based for requests)
   if (formData.marginalizedGroupPercentages !== undefined) {
-    apiData.marginalizedGroupPercentagesInput = formData.marginalizedGroupPercentages.map(mgp => ({
+    apiData.marginalizedGroupPercentages = formData.marginalizedGroupPercentages.map(mgp => ({
       marginalizedGroupId: mgp.marginalizedGroupId,
       percentage: mgp.percentage
     }))

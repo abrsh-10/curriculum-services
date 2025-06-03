@@ -19,7 +19,7 @@ interface PersonalInfoFormProps {
 export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
   return (
     <div className="pb-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <FormField
           control={form.control}
           name="firstName"
@@ -27,7 +27,21 @@ export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
             <FormItem>
               <FormLabel className="text-sm font-medium">First Name</FormLabel>
               <FormControl>
-                <Input {...field} className="h-12 text-sm md:text-md" />
+                <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="middleName"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="text-sm font-medium">Middle Name <span className="text-xs text-gray-500">(Optional)</span></FormLabel>
+              <FormControl>
+                <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -41,7 +55,7 @@ export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
             <FormItem>
               <FormLabel className="text-sm font-medium">Last Name</FormLabel>
               <FormControl>
-                <Input {...field} className="h-12 text-sm md:text-md" />
+                <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -100,7 +114,6 @@ export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
               <Select 
                 onValueChange={field.onChange} 
                 value={field.value || undefined}
-                key={`gender-select-${field.value || 'empty'}`}
               >
                 <FormControl>
                   <SelectTrigger className="h-12 text-sm md:text-md select-trigger">
@@ -121,15 +134,14 @@ export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
           control={form.control}
           name="languageId"
           render={({ field }) => (
-            <FormItem className="col-span-2">
+            <FormItem className="col-span-3">
               <FormLabel className="text-sm font-medium">Language Preference</FormLabel>
               <FormDescription className="text-gray-500 text-sm">
                 Select your preferred language for communication.
               </FormDescription>
               <Select 
                 onValueChange={field.onChange} 
-                value={field.value || ''}
-                key={`language-select-${field.value || 'empty'}`}
+                value={field.value || undefined}
               >
                 <FormControl>
                   <SelectTrigger className="h-12 text-sm md:text-md select-trigger">
@@ -195,7 +207,7 @@ export function PersonalInfoForm({ form, languages }: PersonalInfoFormProps) {
                   Please Specify the owner of the smartphone.
                 </FormDescription>
                 <FormControl>
-                  <Input {...field} className="h-12 text-sm md:text-md" />
+                  <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

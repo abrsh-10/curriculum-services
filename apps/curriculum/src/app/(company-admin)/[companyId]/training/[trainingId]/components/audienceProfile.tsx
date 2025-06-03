@@ -15,18 +15,7 @@ interface BaseItem {
   description: string
 }
 
-interface AudienceProfile {
-  id: string
-  trainingId: string
-  learnerLevel: BaseItem
-  language?: BaseItem
-  educationLevel?: BaseItem
-  specificCourseList?: string[]
-  certifications?: string
-  licenses?: string
-  workExperience?: BaseItem
-  specificPrerequisites?: string[]
-}
+
 
 interface AudienceProfileProps {
   trainingId: string

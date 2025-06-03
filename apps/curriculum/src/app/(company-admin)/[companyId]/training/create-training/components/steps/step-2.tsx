@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { useFormContext } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Check, ChevronsUpDown, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { cn } from '@/lib/utils'
 import { useBaseData } from '@/lib/hooks/useBaseData'
+import { useDebounce } from '@/lib/hooks/useDebounce'
 import { StepProps } from '../types'
 import { TrainingFormData } from '@/types/training-form'
 
@@ -35,6 +37,18 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
   const [openZones, setOpenZones] = useState(false);
   const [openCities, setOpenCities] = useState(false);
   
+  // Search states
+  const [countrySearch, setCountrySearch] = useState('');
+  const [regionSearch, setRegionSearch] = useState('');
+  const [zoneSearch, setZoneSearch] = useState('');
+  const [citySearch, setCitySearch] = useState('');
+  
+  // Debounced search values
+  const debouncedCountrySearch = useDebounce(countrySearch, 300);
+  const debouncedRegionSearch = useDebounce(regionSearch, 300);
+  const debouncedZoneSearch = useDebounce(zoneSearch, 300);
+  const debouncedCitySearch = useDebounce(citySearch, 300);
+  
   const { 
     watch, 
     setValue, 
@@ -46,28 +60,59 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
   const selectedZoneIds = watch('zoneIds') || [];
   const selectedCityIds = watch('cityIds') || [];
   
-  // Fetch all available countries
-  const { data: allCountries, isLoading: isLoadingCountries } = useBaseData('country', { enabled: true });
+  // Fetch all available countries (no pagination for forms)
+  const { data: allCountries, isLoading: isLoadingCountries } = useBaseData('country', { 
+    enabled: true,
+    disablePagination: true 
+  });
   
-  // Fetch regions based on selected countries
-  const { data: allRegions, isLoading: isLoadingRegions } = useBaseData('region', { enabled: true });
+  // Fetch all regions only when countries are selected
+  const { data: allRegions, isLoading: isLoadingRegions } = useBaseData('region', { 
+    enabled: selectedCountryIds.length > 0,
+    disablePagination: true
+  });
+  
+  // Fetch all zones only when regions are selected
+  const { data: allZones, isLoading: isLoadingZones } = useBaseData('zone', { 
+    enabled: selectedRegionIds.length > 0,
+    disablePagination: true
+  });
+  
+  // Fetch all cities only when zones are selected
+  const { data: allCities, isLoading: isLoadingCities } = useBaseData('city', { 
+    enabled: selectedZoneIds.length > 0,
+    disablePagination: true
+  });
+
+  // Filter data based on selections (client-side filtering for hierarchical relationships)
   const availableRegions = (allRegions || []).filter((region: Region) => 
     selectedCountryIds.includes(region.country.id)
   );
   
-  // Fetch zones based on selected regions
-  const { data: allZones, isLoading: isLoadingZones } = useBaseData('zone', { enabled: true });
   const availableZones = (allZones || []).filter((zone: Zone) => 
     selectedRegionIds.includes(zone.region.id)
   );
   
-  // Fetch cities based on selected zones (optional)
-  const { data: allCities, isLoading: isLoadingCities } = useBaseData('city', { enabled: true });
-  const availableCities = selectedZoneIds.length > 0 
-    ? (allCities || []).filter((city: City) => 
-        city.zone && selectedZoneIds.includes(city.zone.id)
-      )
-    : [];
+  const availableCities = (allCities || []).filter((city: City) => 
+    city.zone && selectedZoneIds.includes(city.zone.id)
+  );
+
+  // Filter data based on search
+  const filteredCountries = (allCountries || []).filter((country: BaseItem) =>
+    country.name.toLowerCase().includes(debouncedCountrySearch.toLowerCase())
+  );
+  
+  const filteredRegions = availableRegions.filter((region: Region) =>
+    region.name.toLowerCase().includes(debouncedRegionSearch.toLowerCase())
+  );
+  
+  const filteredZones = availableZones.filter((zone: Zone) =>
+    zone.name.toLowerCase().includes(debouncedZoneSearch.toLowerCase())
+  );
+  
+  const filteredCities = availableCities.filter((city: City) =>
+    city.name.toLowerCase().includes(debouncedCitySearch.toLowerCase())
+  );
 
   const handleSelectCountry = (countryId: string) => {
     const isSelected = selectedCountryIds.includes(countryId);
@@ -126,8 +171,29 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
     setValue('cityIds', newCityIds, { shouldValidate: true });
   };
 
+  // Clear search when popovers close
+  const handleCountriesOpenChange = (open: boolean) => {
+    setOpenCountries(open);
+    if (!open) setCountrySearch('');
+  };
+
+  const handleRegionsOpenChange = (open: boolean) => {
+    setOpenRegions(open);
+    if (!open) setRegionSearch('');
+  };
+
+  const handleZonesOpenChange = (open: boolean) => {
+    setOpenZones(open);
+    if (!open) setZoneSearch('');
+  };
+
+  const handleCitiesOpenChange = (open: boolean) => {
+    setOpenCities(open);
+    if (!open) setCitySearch('');
+  };
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 min-h-0">
       <div>
         <h2 className="lg:text-2xl md:text-xl text-lg font-semibold mb-2 text-center">
           Where will the training take place?
@@ -137,11 +203,11 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
         </p>
       </div>
 
-      <div className="max-w-xl mx-auto space-y-6">
+      <div className="max-w-xl mx-auto space-y-6 relative">
         {/* Countries */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Countries <span className="text-red-500">*</span></label>
-          <Popover open={openCountries} onOpenChange={setOpenCountries}>
+          <Popover open={openCountries} onOpenChange={handleCountriesOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -149,12 +215,12 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 disabled={isLoadingCountries}
                 type="button"
               >
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 max-w-[calc(100%-2rem)] overflow-hidden">
                   {selectedCountryIds.length > 0 ? (
                     selectedCountryIds.map(countryId => {
                       const country = allCountries?.find((c: BaseItem) => c.id === countryId);
                       return (
-                        <Badge key={countryId} variant="pending">
+                        <Badge key={countryId} variant="pending" className="text-xs">
                           {country?.name}
                         </Badge>
                       );
@@ -166,26 +232,44 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {allCountries?.map((country: BaseItem) => (
-                  <div
-                    key={country.id}
-                    className={cn(
-                      "flex items-center px-4 py-2 cursor-pointer hover:bg-gray-100",
-                      selectedCountryIds.includes(country.id) && "bg-gray-100"
-                    )}
-                    onClick={() => handleSelectCountry(country.id)}
-                  >
-                    <Check
+            <PopoverContent className="w-full p-0" align="start" side="bottom" sideOffset={4}>
+              {/* Search Input */}
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search countries..."
+                    value={countrySearch}
+                    onChange={(e) => setCountrySearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[200px] sm:max-h-[250px] overflow-y-auto">
+                {filteredCountries.length > 0 ? (
+                  filteredCountries.map((country: BaseItem) => (
+                    <div
+                      key={country.id}
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        selectedCountryIds.includes(country.id) ? "opacity-100" : "opacity-0"
+                        "flex items-center px-4 py-2 cursor-pointer hover:bg-gray-100",
+                        selectedCountryIds.includes(country.id) && "bg-gray-100"
                       )}
-                    />
-                    {country.name}
+                      onClick={() => handleSelectCountry(country.id)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedCountryIds.includes(country.id) ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {country.name}
+                    </div>
+                  ))
+                ) : (
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    {countrySearch ? "No countries found" : "No countries available"}
                   </div>
-                ))}
+                )}
               </div>
             </PopoverContent>
           </Popover>
@@ -197,7 +281,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
         {/* Regions */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Regions <span className="text-red-500">*</span></label>
-          <Popover open={openRegions} onOpenChange={setOpenRegions}>
+          <Popover open={openRegions} onOpenChange={handleRegionsOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -205,12 +289,12 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 disabled={isLoadingRegions || !selectedCountryIds.length}
                 type="button"
               >
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 max-w-[calc(100%-2rem)] overflow-hidden">
                   {selectedRegionIds.length > 0 ? (
                     selectedRegionIds.map(regionId => {
                       const region = availableRegions.find((r: Region) => r.id === regionId);
                       return (
-                        <Badge key={regionId} variant="pending">
+                        <Badge key={regionId} variant="pending" className="text-xs">
                           {region?.name}
                         </Badge>
                       );
@@ -222,10 +306,22 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {availableRegions.length > 0 ? (
-                  availableRegions.map((region: Region) => (
+            <PopoverContent className="w-full p-0" align="start" side="bottom" sideOffset={4}>
+              {/* Search Input */}
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search regions..."
+                    value={regionSearch}
+                    onChange={(e) => setRegionSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[200px] sm:max-h-[250px] overflow-y-auto">
+                {filteredRegions.length > 0 ? (
+                  filteredRegions.map((region: Region) => (
                     <div
                       key={region.id}
                       className={cn(
@@ -245,7 +341,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                   ))
                 ) : (
                   <div className="px-4 py-3 text-sm text-gray-500">
-                    {selectedCountryIds.length ? "No regions available for selected countries" : "Please select countries first"}
+                    {regionSearch ? "No regions found" : selectedCountryIds.length ? "No regions available for selected countries" : "Please select countries first"}
                   </div>
                 )}
               </div>
@@ -256,7 +352,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
         {/* Zones */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Zones <span className="text-red-500">*</span></label>
-          <Popover open={openZones} onOpenChange={setOpenZones}>
+          <Popover open={openZones} onOpenChange={handleZonesOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -264,12 +360,12 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 disabled={isLoadingZones || !selectedRegionIds.length}
                 type="button"
               >
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 max-w-[calc(100%-2rem)] overflow-hidden">
                   {selectedZoneIds.length > 0 ? (
                     selectedZoneIds.map(zoneId => {
                       const zone = availableZones.find((z: Zone) => z.id === zoneId);
                       return (
-                        <Badge key={zoneId} variant="pending">
+                        <Badge key={zoneId} variant="pending" className="text-xs">
                           {zone?.name}
                         </Badge>
                       );
@@ -281,10 +377,22 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {availableZones.length > 0 ? (
-                  availableZones.map((zone: Zone) => (
+            <PopoverContent className="w-full p-0" align="start" side="bottom" sideOffset={4}>
+              {/* Search Input */}
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search zones..."
+                    value={zoneSearch}
+                    onChange={(e) => setZoneSearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[200px] sm:max-h-[250px] overflow-y-auto">
+                {filteredZones.length > 0 ? (
+                  filteredZones.map((zone: Zone) => (
                     <div
                       key={zone.id}
                       className={cn(
@@ -304,7 +412,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                   ))
                 ) : (
                   <div className="px-4 py-3 text-sm text-gray-500">
-                    {selectedRegionIds.length ? "No zones available for selected regions" : "Please select regions first"}
+                    {zoneSearch ? "No zones found" : selectedRegionIds.length ? "No zones available for selected regions" : "Please select regions first"}
                   </div>
                 )}
               </div>
@@ -315,7 +423,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
         {/* Cities (Optional) */}
         <div className="space-y-2">
           <label className="text-sm font-medium">Cities <span className="text-xs">(Optional)</span></label>
-          <Popover open={openCities} onOpenChange={setOpenCities}>
+          <Popover open={openCities} onOpenChange={handleCitiesOpenChange}>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -323,12 +431,12 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 disabled={isLoadingCities || !selectedZoneIds.length}
                 type="button"
               >
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 max-w-[calc(100%-2rem)] overflow-hidden">
                   {selectedCityIds.length > 0 ? (
                     selectedCityIds.map(cityId => {
                       const city = availableCities.find((c: City) => c.id === cityId);
                       return (
-                        <Badge key={cityId} variant="pending">
+                        <Badge key={cityId} variant="pending" className="text-xs">
                           {city?.name}
                         </Badge>
                       );
@@ -340,10 +448,22 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0">
-              <div className="max-h-[300px] overflow-auto">
-                {availableCities.length > 0 ? (
-                  availableCities.map((city: City) => (
+            <PopoverContent className="w-full p-0" align="start" side="bottom" sideOffset={4}>
+              {/* Search Input */}
+              <div className="p-3 border-b">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Input
+                    placeholder="Search cities..."
+                    value={citySearch}
+                    onChange={(e) => setCitySearch(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div className="max-h-[200px] sm:max-h-[250px] overflow-y-auto">
+                {filteredCities.length > 0 ? (
+                  filteredCities.map((city: City) => (
                     <div
                       key={city.id}
                       className={cn(
@@ -363,7 +483,7 @@ export function CreateTrainingStep2({ onNext, onBack, onCancel, isEditing = fals
                   ))
                 ) : (
                   <div className="px-4 py-3 text-sm text-gray-500">
-                    {selectedZoneIds.length ? "No cities available for selected zones" : "Please select zones first"}
+                    {citySearch ? "No cities found" : selectedZoneIds.length ? "No cities available for selected zones" : "Please select zones first"}
                   </div>
                 )}
               </div>

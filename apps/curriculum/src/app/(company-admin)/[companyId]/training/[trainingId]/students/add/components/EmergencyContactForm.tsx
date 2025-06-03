@@ -56,7 +56,7 @@ export function EmergencyContactForm({
                 Enter the name of your emergency contact.
               </FormDescription>
               <FormControl>
-                <Input {...field} className="h-12 text-sm md:text-md" />
+                <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -116,7 +116,7 @@ export function EmergencyContactForm({
               Friend).
             </FormDescription>
             <FormControl>
-              <Input {...field} className="h-12 text-sm md:text-md" />
+              <Input {...field} value={field.value || ""} className="h-12 text-sm md:text-md" />
             </FormControl>
             <FormMessage />
           </FormItem>

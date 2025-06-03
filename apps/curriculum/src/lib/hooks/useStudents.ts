@@ -11,10 +11,20 @@ export interface City {
   id: string
   name: string
   description: string
-  country: {
+  zone?: {
     id: string
     name: string
     description: string
+    region: {
+      id: string
+      name: string
+      description: string
+      country: {
+        id: string
+        name: string
+        description: string
+      }
+    }
   }
 }
 
@@ -36,16 +46,33 @@ export interface Disability {
   description: string
 }
 
+export interface Zone {
+  id: string
+  name: string
+  description: string
+  region: {
+    id: string
+    name: string
+    description: string
+    country: {
+      id: string
+      name: string
+      description: string
+    }
+  }
+}
+
 export interface Student {
   id: string
   firstName: string
+  middleName: string | null
   lastName: string
   email: string
   contactPhone: string
   dateOfBirth: string
   gender: string
+  zone: Zone | null
   city: City
-  subCity: string
   woreda: string
   houseNumber: string
   language: Language
@@ -63,13 +90,14 @@ export interface Student {
 
 export interface CreateStudentData {
   firstName: string
+  middleName?: string
   lastName: string
   email: string
   contactPhone: string
   dateOfBirth: string
   gender: "MALE" | "FEMALE" 
+  zoneId: string
   cityId: string
-  subCity: string
   woreda: string
   houseNumber: string
   languageId: string
@@ -156,12 +184,48 @@ export function useStudents(
 }
 
 export function useAddStudent() {
-  // Use baseData hook for required data for creating a student
-  const { data: cities } = useBaseData('city')
-  const { data: languages } = useBaseData('language')
-  const { data: academicLevels } = useBaseData('academic-level')
-  const { data: disabilities } = useBaseData('disability')
-  const { data: marginalizedGroups } = useBaseData('marginalized-group')
+  // Always fetch countries first
+  const { data: countries } = useBaseData('country', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  // Fetch all regions, zones, and cities without pagination for client-side filtering
+  // This matches the venue form pattern exactly
+  const { data: regions } = useBaseData('region', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: zones } = useBaseData('zone', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: cities } = useBaseData('city', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: languages } = useBaseData('language', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: academicLevels } = useBaseData('academic-level', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: disabilities } = useBaseData('disability', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: marginalizedGroups } = useBaseData('marginalized-group', {
+    enabled: true,
+    disablePagination: true
+  })
 
   // Get query client instance
   const queryClient = useQueryClient()
@@ -203,6 +267,9 @@ export function useAddStudent() {
   })
 
   return {
+    countries,
+    regions,
+    zones,
     cities,
     languages,
     academicLevels,
@@ -296,6 +363,45 @@ export function useUpdateStudent() {
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to update student')
+    }
+  })
+}
+
+export function useBulkImportStudents() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ 
+      trainingId, 
+      studentsData 
+    }: { 
+      trainingId: string, 
+      studentsData: CreateStudentData[] 
+    }) => {
+      const token = getCookie('token')
+      
+      // Process phone numbers for all students
+      const processedData = studentsData.map(studentData => ({
+        ...studentData,
+        contactPhone: addPhonePrefix(studentData.contactPhone),
+        emergencyContactPhone: addPhonePrefix(studentData.emergencyContactPhone)
+      }))
+      
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/trainee/bulk/training/${trainingId}`,
+        processedData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return { responseData: response.data, trainingId }
+    },
+    onSuccess: ({ trainingId }) => {
+      toast.success('Students imported successfully')
+      queryClient.invalidateQueries({ queryKey: ['students', trainingId] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to import students')
     }
   })
 }

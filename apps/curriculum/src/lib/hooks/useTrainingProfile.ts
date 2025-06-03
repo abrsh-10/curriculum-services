@@ -9,6 +9,7 @@ export interface TrainingProfile {
   trainingId: string
   keywords: string[]
   scope: string | null
+  attendanceRequirementPercentage?: number | null
   rationale?: string | null
   alignmentsWithStandard?: Array<{id: string, name: string, description: string}> | string[] | string | null
   alignmentStandardIds?: string[] | null

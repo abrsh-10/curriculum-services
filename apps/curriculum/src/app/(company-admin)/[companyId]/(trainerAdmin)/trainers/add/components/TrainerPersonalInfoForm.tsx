@@ -69,6 +69,31 @@ export function TrainerPersonalInfoForm({ form, languages, disabled = false }: T
             />
           </div>
         </div>
+
+        {/* Fayda ID */}
+        <div className="flex flex-col md:flex-row gap-10">
+          <div className="flex-1">
+            <FormField
+              control={form.control}
+              name="faydaId"
+              render={({ field }) => (
+                <FormItem className="space-y-1">
+                  <FormLabel className="text-[16px] font-medium text-gray-700">Fayda ID</FormLabel>
+                  <FormControl>
+                    <Input 
+                      placeholder="Enter Fayda ID" 
+                      {...field} 
+                      className="h-12 border-[#E4E4E4] rounded-md"
+                      disabled={disabled}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+          <div className="flex-1"></div> {/* Empty div to maintain layout */}
+        </div>
       </div>
 
       {/* Date of Birth and Gender */}

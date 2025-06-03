@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import axios from "axios"
 import { getCookie } from "@curriculum-services/auth"
 
-
 interface ObjectiveResponse {
   code: string
   message: string
@@ -25,6 +24,30 @@ interface ObjectiveResponse {
 interface ObjectiveData {
   definition: string
   trainingId: string
+}
+
+// New bulk create interface
+interface BulkCreateObjectiveData {
+  trainingId: string
+  generalObjective: string
+  specificObjectives: Array<{
+    specificObjective: string
+    outcomes: string[]
+  }>
+}
+
+// New bulk update interface
+interface BulkUpdateObjectiveData {
+  generalObjectiveId: string
+  generalObjective: string
+  specificObjectives: Array<{
+    id: string
+    specificObjective: string
+    outcomes: Array<{
+      id: string
+      definition: string
+    }>
+  }>
 }
 
 // Hook to fetch objectives
@@ -55,7 +78,82 @@ export function useObjective(trainingId: string) {
   })
 }
 
-// Hook to create objective
+export function useBulkCreateObjective() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (data: BulkCreateObjectiveData) => {
+      const token = getCookie('token')
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/training/add-objective-bulk`,
+        data,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['objective', variables.trainingId] 
+      })
+    }
+  })
+}
+
+export function useBulkUpdateObjective() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ data, trainingId }: { data: BulkUpdateObjectiveData, trainingId: string }) => {
+      const token = getCookie('token')
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/training/edit-objective-bulk`,
+        data,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['objective', variables.trainingId] 
+      })
+    }
+  })
+}
+
+// Delete objective hook
+export function useDeleteObjective() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ objectiveId, trainingId }: { objectiveId: string, trainingId: string }) => {
+      const token = getCookie('token')
+      const response = await axios.delete(
+        `${process.env.NEXT_PUBLIC_API}/training/delete-objective/${objectiveId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['objective', variables.trainingId] 
+      })
+    }
+  })
+}
+
+// Keep the old hooks for backward compatibility if needed elsewhere
 export function useCreateObjective() {
   const queryClient = useQueryClient()
 
@@ -79,7 +177,6 @@ export function useCreateObjective() {
   })
 }
 
-// Hook to update objective
 export function useUpdateObjective() {
   const queryClient = useQueryClient()
 

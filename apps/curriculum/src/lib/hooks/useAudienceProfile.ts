@@ -2,9 +2,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useQuery} from "@tanstack/react-query"
 import axios from "axios"
 import { getCookie } from "@curriculum-services/auth"
+
 interface BaseItem {
   id: string
   name: string
@@ -17,7 +18,7 @@ interface AudienceProfile {
   learnerLevel: BaseItem
   language?: BaseItem
   educationLevel?: BaseItem
-  specificCoursesList?: string[]
+  specificCourseList?: string[]
   certifications?: string
   licenses?: string
   workExperience?: BaseItem
@@ -36,13 +37,22 @@ export function useAudienceProfile(trainingId: string) {
     queryFn: async () => {
       try {
         const token = getCookie('token')
-        const response = await axios.get<AudienceProfileResponse>(
+        const response = await axios.get<any>(
           `${process.env.NEXT_PUBLIC_API}/training/audience-profile/${trainingId}`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
         )
-        return response.data.audienceProfile || null  
+        
+        const audienceProfile = response.data.audienceProfile
+        if (!audienceProfile) return null
+        
+        // Transform the data to handle the naming mismatch
+        // API returns specificCoursesList, but frontend expects specificCourseList
+        return {
+          ...audienceProfile,
+          specificCourseList: audienceProfile.specificCoursesList || audienceProfile.specificCourseList || []
+        }
       } catch (error: any) {
         return null
       }
@@ -51,3 +61,4 @@ export function useAudienceProfile(trainingId: string) {
     retry: 1
   })
 } 
+

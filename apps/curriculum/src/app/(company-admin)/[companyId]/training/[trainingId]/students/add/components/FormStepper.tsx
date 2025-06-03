@@ -3,10 +3,10 @@ import { useEffect, useState } from "react"
 
 interface FormStepperProps {
   currentStep: number
-  totalSteps?: number // Make totalSteps optional for backward compatibility, default to 4
+  totalSteps?: number // Make totalSteps optional for backward compatibility, default to 5
 }
 
-export function FormStepper({ currentStep, totalSteps = 4 }: FormStepperProps) {
+export function FormStepper({ currentStep, totalSteps = 5 }: FormStepperProps) {
   // Add a unique key to force re-render when needed
   const [renderKey, setRenderKey] = useState(Date.now())
 

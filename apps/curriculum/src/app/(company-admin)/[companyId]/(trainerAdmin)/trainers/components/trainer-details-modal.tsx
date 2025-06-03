@@ -16,6 +16,7 @@ import { Trainer, CreateTrainerData, useUpdateTrainer, Language, AcademicLevel, 
 const trainerFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
+  faydaId: z.string().optional(),
   dateOfBirth: z.date({ required_error: "Date of birth is required" }).optional(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { required_error: "Gender is required" }).optional(),
   email: z.string().email("Invalid email address").min(1, "Email is required"),
@@ -27,6 +28,10 @@ const trainerFormSchema = z.object({
   trainingTagIds: z.array(z.string()).optional(),
   coursesTaught: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
+  zoneId: z.string().min(1, "Zone is required"),
+  cityId: z.string().min(1, "City is required"),
+  woreda: z.string().optional(),
+  houseNumber: z.string().optional(),
 });
 
 type TrainerFormValues = z.infer<typeof trainerFormSchema>;
@@ -70,6 +75,11 @@ export function TrainerDetailsModal({
       trainingTagIds: trainer.trainingTags?.map(tag => tag.id) || [],
       coursesTaught: trainer.coursesTaught || [],
       certifications: trainer.certifications || [],
+      faydaId: trainer.faydaId,
+      zoneId: trainer.zone?.id || "",
+      cityId: trainer.city?.id || "",
+      woreda: trainer.woreda,
+      houseNumber: trainer.houseNumber,
     },
   })
 
@@ -79,6 +89,7 @@ export function TrainerDetailsModal({
       : trainer.dateOfBirth;
 
     const trainerData: CreateTrainerData = {
+      faydaId: values.faydaId || trainer.faydaId || "",
       firstName: values.firstName,
       lastName: values.lastName,
       email: values.email,
@@ -92,6 +103,10 @@ export function TrainerDetailsModal({
       experienceYears: values.experienceYears,
       coursesTaught: values.coursesTaught || [],
       certifications: values.certifications || [],
+      zoneId: values.zoneId || trainer.zone?.id || "",
+      cityId: values.cityId || trainer.city?.id || "",
+      woreda: values.woreda || trainer.woreda || "",
+      houseNumber: values.houseNumber || trainer.houseNumber || "",
     };
 
     try {

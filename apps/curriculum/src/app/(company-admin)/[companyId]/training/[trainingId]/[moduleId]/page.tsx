@@ -1,18 +1,27 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useState, useEffect, lazy, Suspense } from "react"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ModuleTabs } from "./components/module-tabs"
-import { ModuleInformation } from "./components/module-information"
-import { Content } from "./components/content"
-import { AssessmentMethod } from "./components/assesment-method"
 import Link from "next/link"
 import { useTraining } from "@/lib/hooks/useTraining"
 import { useModules } from "@/lib/hooks/useModule"
 import { Loading } from "@/components/ui/loading"
+import { toast } from "sonner"
+
+// Dynamically import components
+const ModuleInformation = lazy(() => import("./components/module-information").then(module => ({ default: module.ModuleInformation })))
+const AssessmentMethod = lazy(() => import("./components/assesment-method").then(module => ({ default: module.AssessmentMethod })))
+
+// Define module tab type locally
+type ModuleTabType = 'information' | 'content' | 'assessment-method'
+
+// Valid tabs constant for type safety
+const VALID_TABS: Array<ModuleTabType> = ['information', 'content', 'assessment-method'];
 
 export default function ModuleDetail() {
   const params = useParams()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const tabParam = searchParams.get('tab')
   const trainingId = params.trainingId as string
@@ -20,20 +29,39 @@ export default function ModuleDetail() {
   const companyId = params.companyId as string
   
   // Get tab from URL query or default to 'information'
-  const [activeTab, setActiveTab] = useState<'information'  | 'content' | 'assessment-method'>(
-    tabParam === 'assessment-method' ? 'assessment-method' : 'information'
-  )
+  const initialTab: ModuleTabType = VALID_TABS.includes(tabParam as ModuleTabType) ? (tabParam as ModuleTabType) : 'information'
+  const [activeTab, setActiveTab] = useState<ModuleTabType>(initialTab)
+
+  // Update the URL when tab changes
+  const handleTabChange = (tab: ModuleTabType) => {
+    setActiveTab(tab)
+    
+    // Create new URLSearchParams object from current params
+    const newParams = new URLSearchParams(searchParams)
+    
+    // Set the tab parameter
+    newParams.set('tab', tab)
+    
+    // Update the URL without reloading the page
+    router.replace(`/${companyId}/training/${trainingId}/${moduleId}?${newParams.toString()}`, { scroll: false })
+  }
 
   // Fetch training and module data for breadcrumb
-  const { data: training, isLoading: trainingLoading } = useTraining(trainingId)
-  const { data: moduleDetails, isLoading: moduleLoading } = useModules(moduleId)
+  const { data: training, isLoading: trainingLoading, error: trainingError } = useTraining(trainingId)
+  const { data: moduleDetails, isLoading: moduleLoading, error: moduleError } = useModules(moduleId)
 
-  // Update activeTab when URL changes
   useEffect(() => {
-    if (tabParam === 'assessment-method') {
-      setActiveTab('assessment-method')
+    if (trainingError) {
+      toast.error("Failed to load training", {
+        description: "Please try again later"
+      })
     }
-  }, [tabParam])
+    if (moduleError) {
+      toast.error("Failed to load module", {
+        description: "Please try again later"
+      })
+    }
+  }, [trainingError, moduleError])
 
   if (trainingLoading || moduleLoading) {
     return <Loading />
@@ -73,12 +101,14 @@ export default function ModuleDetail() {
       </div>
 
       {/* Module Content */}
-      <ModuleTabs activeTab={activeTab} onTabChange={setActiveTab} />
+      <ModuleTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
       <div>
-        {activeTab === 'information' && <ModuleInformation moduleId={moduleId} />}
-        {activeTab === 'content' && <Content/>}
-        {activeTab === 'assessment-method' && <AssessmentMethod moduleId={moduleId} />}
+        <Suspense fallback={<Loading />}>
+          {activeTab === 'information' && <ModuleInformation moduleId={moduleId} />}
+          
+          {activeTab === 'assessment-method' && <AssessmentMethod moduleId={moduleId} />}
+        </Suspense>
       </div>
     </div>
   )

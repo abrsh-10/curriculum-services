@@ -24,24 +24,14 @@ interface AudienceProfile {
   learnerLevel: BaseItem
   language?: BaseItem
   educationLevel?: BaseItem
-  specificCoursesList?: string[]
+  specificCourseList?: string[]
   certifications?: string
   licenses?: string
   workExperience?: BaseItem
   specificPrerequisites?: string[]
 }
 
-interface AudienceProfileData {
-  trainingId: string
-  learnerLevelId: string
-  languageId?: string
-  educationLevelId?: string
-  specificCoursesList?: string[]
-  certifications?: string
-  licenses?: string
-  workExperienceId?: string
-  specificPrerequisites?: string[]
-}
+
 
 interface AudienceProfileEditProps {
   trainingId: string
@@ -73,7 +63,7 @@ export function AudienceProfileEdit({
   const [completedSections, setCompletedSections] = useState<string[]>([])
 
   const createProfile = useCreateAudienceProfile()
-  const updateProfile = useUpdateAudienceProfile()
+  const updateProfile = useUpdateAudienceProfile(initialData?.id || "")
 
   useEffect(() => {
     if (initialData) {
@@ -87,7 +77,7 @@ export function AudienceProfileEdit({
       
       // Check if prerequisites are completed
       if (initialData.language?.id || initialData.educationLevel?.id || 
-          initialData.specificCoursesList?.length || initialData.certifications || 
+          initialData.specificCourseList?.length || initialData.certifications || 
           initialData.licenses || initialData.workExperience?.id || 
           initialData.specificPrerequisites?.length) {
         completed.push("Prerequisites")
@@ -178,11 +168,16 @@ export function AudienceProfileEdit({
       prev.includes("Prerequisites") ? prev : [...prev, "Prerequisites"]
     )
     
-    // Save all audience profile data
-    const profileData: AudienceProfileData = {
-      trainingId,
+    // Save all audience profile data with the correct structure (IDs, not objects)
+    const profileData = {
       learnerLevelId,
-      ...data
+      languageId: data.languageId,
+      educationLevelId: data.educationLevelId,
+      specificCourseList: data.specificCourseList,
+      certifications: data.certifications,
+      licenses: data.licenses,
+      workExperienceId: data.workExperienceId,
+      specificPrerequisites: data.specificPrerequisites
     }
 
     try {
@@ -241,7 +236,7 @@ export function AudienceProfileEdit({
             initialData={initialData ? {
               languageId: initialData.language?.id,
               educationLevelId: initialData.educationLevel?.id,
-              specificCoursesList: initialData.specificCoursesList,
+              specificCourseList: initialData.specificCourseList,
               certifications: initialData.certifications,
               licenses: initialData.licenses,
               workExperienceId: initialData.workExperience?.id,

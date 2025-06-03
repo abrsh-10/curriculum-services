@@ -5,13 +5,13 @@ import type { NextRequest } from "next/server";
 import { decodeJWT, isTokenExpired } from "@curriculum-services/auth";
 
 export function middleware(req: NextRequest) {
-  console.log('Middleware running for path:', req.nextUrl.pathname);
+  // console.log('Middleware running for path:', req.nextUrl.pathname);
   const token = req.cookies.get('token')?.value;
   const { pathname } = req.nextUrl;
 
   // console.log('Middleware: Path:', pathname);
   // console.log('Middleware: Cookies found:', cookies.map(c => c.name).join(', '));
-  console.log('Token present:', !!token);
+  // console.log('Token present:', !!token);
 
   // Allow access to unauthorized page
   if (pathname === '/unauthorized') {
@@ -20,7 +20,7 @@ export function middleware(req: NextRequest) {
 
   // If no token, redirect to root for login
   if (!token) {
-    console.log('Middleware: No token found in cookies, redirecting to login');
+    // console.log('Middleware: No token found in cookies, redirecting to login');
     return pathname === '/' 
       ? NextResponse.next()
       : NextResponse.redirect(new URL('/', req.url));
@@ -32,7 +32,7 @@ export function middleware(req: NextRequest) {
   
     // If token is invalid or expired, clear cookies and redirect to login
     if (!decoded || isTokenExpired(decoded)) {
-      console.log('Token is invalid or expired, redirecting to login');
+      // console.log('Token is invalid or expired, redirecting to login');
       const response = NextResponse.redirect(new URL('/', req.url));
       response.cookies.delete('token'); // Clear the token cookie
       response.cookies.delete('company_info'); // Clear any other auth-related cookies
@@ -82,10 +82,11 @@ export function middleware(req: NextRequest) {
         `/${baseRoute}/venue`,
         `/${baseRoute}/venues`,
         `/${baseRoute}/venue/add`,
+        `/${baseRoute}/training`,
       ];
 
       // Allow access to training routes and their nested routes
-      if (pathname.startsWith(`/${baseRoute}/training`)) {
+      if (pathname.startsWith(`/${baseRoute}/training`) || pathname.includes('/training/')) {
         return NextResponse.next({
           request: { headers: requestHeaders }
         });
@@ -134,22 +135,7 @@ export function middleware(req: NextRequest) {
       // Get company info from cookies for newly created profiles
       const companyInfo = req.cookies.get('company_info')?.value;
       const companyData = companyInfo ? JSON.parse(companyInfo) : null;
-
-      // If at root with valid token
-      if (pathname === '/') {
-        // Check both token and cookie for company profile info
-        const hasProfile = decoded.isProfileFilled || companyData?.id;
-        const profileId = decoded.companyProfileId || companyData?.id;
-
-        if (hasProfile && profileId) {
-          return NextResponse.redirect(new URL(`/${profileId}/dashboard`, req.url), {
-            headers: requestHeaders
-          });
-        }
-        return NextResponse.redirect(new URL('/company-profile', req.url), {
-          headers: requestHeaders
-        });
-      }
+      const profileId = decoded.companyProfileId ?? companyData?.id;
 
       // Allow access to company profile page only if profile isn't filled
       if (pathname === '/company-profile' && (decoded.profileStatus === "REJECTED" || !decoded.isProfileFilled)) {
@@ -158,9 +144,23 @@ export function middleware(req: NextRequest) {
         });
       }
 
-      // Check if trying to access company routes
-      const profileId = decoded.companyProfileId || companyData?.id;
-      const isCompanyRoute = profileId && pathname.startsWith(`/${profileId}/`);
+      // If profile is not filled or no profileId, redirect to company-profile for any route
+      if (!decoded.isProfileFilled || !profileId) {
+        return NextResponse.redirect(new URL('/company-profile', req.url), {
+          headers: requestHeaders
+        });
+      }
+
+      // If at root with filled profile, redirect to dashboard
+      if (pathname === '/') {
+        return NextResponse.redirect(new URL(`/${profileId}/dashboard`, req.url), {
+          headers: requestHeaders
+        });
+      }
+
+      // Check if trying to access company routes (including training import pages)
+      const isCompanyRoute = pathname.startsWith(`/${profileId}/`) || 
+                            (pathname.includes('/training/') && pathname.includes('/students/import'));
       
       if (!isCompanyRoute) {
         return NextResponse.redirect(new URL('/unauthorized', req.url), {
@@ -173,7 +173,7 @@ export function middleware(req: NextRequest) {
       request: { headers: requestHeaders }
     });
   } catch (error) {
-    console.error('Error in middleware:', error);
+    console.log('Error in middleware:', error);
     // If there's an error processing the token, redirect to login
     const response = NextResponse.redirect(new URL('/', req.url));
     response.cookies.delete('token');

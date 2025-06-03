@@ -62,6 +62,8 @@ interface BaseDataOptions {
   enabled?: boolean;
   page?: number;
   pageSize?: number;
+  // Option to disable pagination (useful for forms)
+  disablePagination?: boolean;
 }
 
 interface ApiResponse {
@@ -77,8 +79,8 @@ interface ApiResponse {
 export function useBaseData(type: BaseDataType, options?: BaseDataOptions) {
   const queryClient = useQueryClient();
   const page = options?.page || 1;
-  const pageSize = options?.pageSize || 10;
-  const queryKey = ['base-data', type, options?.type, options?.subType, page, pageSize];
+  const pageSize = options?.pageSize || 20;
+  const queryKey = ['base-data', type, options?.type, options?.subType, options?.disablePagination ? 'no-pagination' : page, options?.disablePagination ? 'no-pagination' : pageSize];
   const responseKey = getResponseKey(type);
 
   // Query for fetching base data
@@ -95,9 +97,12 @@ export function useBaseData(type: BaseDataType, options?: BaseDataOptions) {
         if (type === 'assessment-type' && options?.subType) {
           queryParams.push(`sub-type=${options.subType}`);
         }
-        // Add pagination parameters
-        queryParams.push(`page=${page}`);
-        queryParams.push(`page-size=${pageSize}`);
+        
+        // Add pagination parameters only if pagination is not disabled
+        if (!options?.disablePagination) {
+          queryParams.push(`page=${page}`);
+          queryParams.push(`page-size=${pageSize}`);
+        }
 
         if (queryParams.length > 0) {
           url += `?${queryParams.join('&')}`;

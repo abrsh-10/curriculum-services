@@ -2,6 +2,7 @@ export interface BaseItem {
   id: string
   name: string
   description: string
+  range?: string | null
 }
 
 export interface PrerequisiteData {

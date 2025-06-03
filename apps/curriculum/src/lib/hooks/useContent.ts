@@ -25,16 +25,16 @@ export interface Content {
   id: string
   name: string
   description: string
-  contentLevel: 'MODULE' | 'SECTION' | 'LESSON'
+  contentLevel: 'MODULE' | 'SECTION' | 'LESSON' | 'ASSESSMENT'
   contentFileType: 'PDF' | 'VIDEO' | 'LINK'
   link: string | null
   referenceLink: string | null
   rejectionReason: string | null
   contentStatus: 'PENDING' | 'ACCEPTED' | 'REJECTED'
   contentDeveloper: ContentDeveloper
-  moduleName: string
-  sectionName: string | null
+  moduleName: string | null
   lessonName: string | null
+  assessmentName: string | null
 }
 
 interface ContentResponse {
@@ -54,8 +54,9 @@ interface ContentPayload {
     contentFileType: 'PDF' | 'VIDEO' | 'LINK'
   }[]
   email: string
-  moduleId: string
+  moduleId?: string
   lessonId?: string
+  assessmentId?: string
 }
 
 interface GetContentsParams {

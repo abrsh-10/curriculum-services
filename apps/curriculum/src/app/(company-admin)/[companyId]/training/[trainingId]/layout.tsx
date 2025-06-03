@@ -1,7 +1,6 @@
 "use client"
 
 import { useParams, useRouter, usePathname } from "next/navigation"
-import Link from "next/link"
 import { ChevronLeft, UserRoundCog } from "lucide-react"
 import { useTraining } from "@/lib/hooks/useTraining"
 import { useUserRole } from "@/lib/hooks/useUserRole"
@@ -53,7 +52,6 @@ export default function TrainingLayout({
       '/[companyId]/training/[trainingId]/evaluation/builder',
       '/[companyId]/training/[trainingId]/evaluation/[formId]',
       '/[companyId]/training/[trainingId]/evaluation/builder/[evaluationId]/question/[questionId]',
-      '/[companyId]/training/[trainingId]/students/add',
       '/[companyId]/training/[trainingId]/sessions/add'
     ];
     

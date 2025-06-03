@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useBaseData } from "@/lib/hooks/useBaseData"
-import { BaseItem } from "@/types/training-form"
+import { BaseItem } from "@/types/curriculum"
 
 interface ModuleFormData {
   name: string;
