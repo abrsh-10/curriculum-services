@@ -462,7 +462,7 @@ export function TrainerProfessionalInfoForm({
               name="cityId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel className="text-[16px] font-medium text-gray-800">City <span className="text-red-500">*</span></FormLabel>
+                  <FormLabel className="text-[16px] font-medium text-gray-800">City</FormLabel>
                   <Popover open={openCities && !disabled} onOpenChange={handleCitiesOpenChange}>
                     <PopoverTrigger asChild>
                       <Button
@@ -472,7 +472,7 @@ export function TrainerProfessionalInfoForm({
                         type="button"
                       >
                         <span className="truncate">
-                          {getSelectedCityName() || (!selectedZoneId ? "Select zone first" : "Select a city")}
+                          {getSelectedCityName() || (!selectedZoneId ? "Select zone first" : "Select a city (optional)")}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>

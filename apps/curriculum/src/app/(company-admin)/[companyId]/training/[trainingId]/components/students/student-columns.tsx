@@ -132,4 +132,36 @@ export const createActionsColumn = (
       </div>
     )
   }
+})
+
+// Creates a remove column specifically for removing students from cohorts
+export const createRemoveFromCohortColumn = (
+  handleRemoveStudent: (student: Student) => void,
+  hasRemovePermission: boolean,
+  isRemoving?: boolean
+): ColumnDef<Student> => ({
+  id: "remove",
+  header: "Actions",
+  cell: ({ row }) => {
+    const student = row.original;
+    
+    if (!hasRemovePermission) {
+      return null;
+    }
+    
+    return (
+      <div className="flex items-center gap-2">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => handleRemoveStudent(student)}
+          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+          title="Remove from Cohort"
+          disabled={isRemoving}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    )
+  }
 }) 

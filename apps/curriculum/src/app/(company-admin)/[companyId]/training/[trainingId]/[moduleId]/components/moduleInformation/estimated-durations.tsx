@@ -45,6 +45,8 @@ export function EstimatedDurations() {
                 <SelectItem value="DAYS">Days</SelectItem>
                 <SelectItem value="WEEKS">Weeks</SelectItem>
                 <SelectItem value="MONTHS">Months</SelectItem>
+                <SelectItem value="HOURS">Hours</SelectItem>
+                <SelectItem value="MINUTES">Minutes</SelectItem>
               </SelectContent>
             </Select>
           </div>

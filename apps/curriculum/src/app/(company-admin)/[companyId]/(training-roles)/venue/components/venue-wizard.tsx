@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 
 
 import { venueSchema, VenueSchema } from "./venue-schema"
-import { useAddVenue, useUpdateVenue, Venue, CreateVenueData } from "@/lib/hooks/useVenue"
+import { useAddVenue, useUpdateVenue, Venue, CreateVenueData, VenueResponse } from "@/lib/hooks/useVenue"
 import { VenueWizardForm } from "./venue-wizard-form"
 
 interface VenueWizardProps {
@@ -12,6 +12,7 @@ interface VenueWizardProps {
   onSuccess: () => void
   onCancel: () => void
   venue?: Venue | null
+  venueDetails?: VenueResponse
 }
 
 // Define step titles
@@ -45,7 +46,8 @@ export const VenueWizard = memo(function VenueWizard({
   companyId, 
   onSuccess, 
   onCancel, 
-  venue 
+  venue, 
+  venueDetails 
 }: VenueWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const { addVenue, isLoading: isAddingVenue } = useAddVenue()
@@ -58,33 +60,46 @@ export const VenueWizard = memo(function VenueWizard({
   const form = useForm<VenueSchema>({
     resolver: zodResolver(venueSchema),
     defaultValues: useMemo(() => {
-      if (!venue) return defaultValues
+      // Use detailed venue data if available, otherwise fall back to basic venue data
+      const venueData = venueDetails?.venue || venue;
+      
+      if (!venueData) return defaultValues
+      
+      // Handle zone ID extraction - zone can be string or object
+      let zoneId = "";
+      if (venueData.zone) {
+        if (typeof venueData.zone === 'string') {
+          zoneId = venueData.zone;
+        } else {
+          zoneId = venueData.zone.id || "";
+        }
+      }
       
       return {
-        name: venue.name || "",
-        location: venue.location || "",
-        zoneId: venue.city?.zone?.id || "",
-        cityId: venue.city?.id || "",
-        woreda: venue.woreda || "",
-        latitude: venue.latitude,
-        longitude: venue.longitude,
-        venueRequirements: venue.venueRequirementList?.map(req => ({
+        name: venueData.name || "",
+        location: venueData.location || "",
+        zoneId,
+        cityId: venueData.city?.id || "",
+        woreda: venueData.woreda || "",
+        latitude: venueData.latitude,
+        longitude: venueData.longitude,
+        venueRequirements: venueData.venueRequirementList?.map(req => ({
           equipmentItemId: req.equipmentItem.id,
           numericValue: req.numericValue,
           remark: req.remark || "",
           available: req.available,
         })) || [],
-        seatingCapacity: venue.seatingCapacity || 1,
-        standingCapacity: venue.standingCapacity,
-        roomCount: venue.roomCount || 1,
-        totalArea: venue.totalArea || 1,
-        hasAccessibility: venue.hasAccessibility || false,
-        accessibilityFeatures: venue.accessibilityFeatures || "",
-        hasParkingSpace: venue.hasParkingSpace || false,
-        parkingCapacity: venue.parkingCapacity,
-        isActive: venue.isActive ?? true,
+        seatingCapacity: venueData.seatingCapacity || 1,
+        standingCapacity: venueData.standingCapacity,
+        roomCount: venueData.roomCount || 1,
+        totalArea: venueData.totalArea || 1,
+        hasAccessibility: venueData.hasAccessibility || false,
+        accessibilityFeatures: venueData.accessibilityFeatures || "",
+        hasParkingSpace: venueData.hasParkingSpace || false,
+        parkingCapacity: venueData.parkingCapacity,
+        isActive: venueData.isActive ?? true,
       }
-    }, [venue]),
+    }, [venue, venueDetails]),
     mode: "onChange",
   })
 
@@ -121,7 +136,7 @@ export const VenueWizard = memo(function VenueWizard({
       name: values.name,
       location: values.location,
       zoneId: values.zoneId,
-      cityId: values.cityId,
+      cityId: values.cityId || undefined,
       woreda: values.woreda,
       latitude: values.latitude,
       longitude: values.longitude,
@@ -145,19 +160,23 @@ export const VenueWizard = memo(function VenueWizard({
     if (isEditMode && venue) {
       updateVenue({ venueId: venue.id, venueData: formattedData }, {
         onSuccess: () => {
+          // Only call onSuccess when the API operation actually succeeds
           onSuccess()
         },
-        onError: () => {
-          // Toast notification is handled by the hook
+        onError: (error) => {
+          // Keep modal open on error - toast notification is handled by the hook
+          console.error('Update venue failed:', error);
         }
       })
     } else {
       addVenue(formattedData, {
         onSuccess: () => {
+          // Only call onSuccess when the API operation actually succeeds
           onSuccess()
         },
-        onError: () => {
-          // Toast notification is handled by the hook
+        onError: (error) => {
+          // Keep modal open on error - toast notification is handled by the hook
+          console.error('Add venue failed:', error);
         }
       })
     }
@@ -198,8 +217,8 @@ export const VenueWizard = memo(function VenueWizard({
           isLoading={isLoading}
           companyId={companyId}
           isEditMode={isEditMode}
-          initialCountryId={venue?.city?.zone?.region?.country?.id || ""}
-          initialRegionId={venue?.city?.zone?.region?.id || ""}
+          initialCountryId={venueDetails?.venue?.city?.zone?.region?.country?.id || venue?.city?.zone?.region?.country?.id || ""}
+          initialRegionId={venueDetails?.venue?.city?.zone?.region?.id || venue?.city?.zone?.region?.id || ""}
         />
       </div>
     </div>

@@ -96,12 +96,6 @@ export const studentFormSchema = personalInfoSchema
     path: ["zoneId"],
   })
   .refine(data => {
-    return data.cityId && data.cityId.length > 0;
-  }, {
-    message: "Please select a city",
-    path: ["cityId"],
-  })
-  .refine(data => {
     return data.academicLevelId && data.academicLevelId.length > 0;
   }, {
     message: "Please select your highest qualification",

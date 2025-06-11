@@ -252,24 +252,27 @@ export default function CompanyAdminLayout({
     if (params.applicationId) {
       routePattern = routePattern.replace(params.applicationId as string, '[applicationId]');
     }
+
+    if (params.cohortId) {
+      routePattern = routePattern.replace(params.cohortId as string, '[cohortId]');
+    }
     
     const specialRoutes = [
       '/[companyId]/training/create-training',  
       '/[companyId]/training/[trainingId]',
       '/[companyId]/training/[trainingId]/users',
       '/[companyId]/training/[trainingId]/[moduleId]',
+      '/[companyId]/training/[trainingId]/cohorts/[cohortId]',
+      '/[companyId]/training/[trainingId]/cohorts/[cohortId]/sessions/[sessionId]',
       '/[companyId]/training/[trainingId]/evaluation/create',
       '/[companyId]/training/[trainingId]/evaluation/builder',
       '/[companyId]/training/[trainingId]/evaluation/[formId]',
       '/[companyId]/training/[trainingId]/students/import',
       '/[companyId]/trainers/add',
-      '/[companyId]/training/[trainingId]/sessions/add',
-      '/[companyId]/training/[trainingId]/sessions/[sessionId]',
       '/[companyId]/jobs/applications/[applicationId]',
       '/[companyId]/venue/add',
       '/[companyId]/venue/[venueId]',
       '/[companyId]/analytics-chat',
- 
     ];
     
     return specialRoutes.some(route => routePattern === route);

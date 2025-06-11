@@ -123,13 +123,16 @@ export const createVenueColumns = ({ onEdit, onDelete }: VenueColumnsProps): Col
       const zone = row.original.zone
       if (!zone) return "No Zone Assigned"
       
+      // Handle zone being either string or object
+      const zoneName = typeof zone === 'string' ? zone : (zone as { name?: string })?.name || 'Unknown Zone';
+      
       return (
         <div className="flex items-center gap-2">
           <div 
             className="w-3 h-3 rounded-full" 
             style={{ backgroundColor: '#DDEB9D' }} 
           />
-          <span>{zone}</span>
+          <span>{zoneName}</span>
         </div>
       )
     }

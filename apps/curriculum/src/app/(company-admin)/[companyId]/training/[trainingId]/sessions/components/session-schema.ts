@@ -28,6 +28,8 @@ export const sessionSchema = z.object({
   assistantTrainerCompensationType: z.enum(["PER_HOUR", "PER_TRAINEES"] as const).optional(),
   assistantTrainerCompensationAmount: z.coerce.number().optional(),
   trainingLink: z.string().optional(),
+  isFirst: z.boolean().default(false),
+  isLast: z.boolean().default(false),
 }).refine((data) => {
   // If delivery method is OFFLINE, trainingVenueId is required
   if (data.deliveryMethod === "OFFLINE") {
@@ -60,4 +62,6 @@ export interface CustomCreateSessionData {
   assistantTrainerCompensationType: CompensationType;
   assistantTrainerCompensationAmount: number;
   trainingLink?: string;
+  isFirst: boolean;
+  isLast: boolean;
 } 

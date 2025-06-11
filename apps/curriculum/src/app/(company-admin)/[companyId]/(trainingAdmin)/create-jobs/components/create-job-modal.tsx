@@ -20,11 +20,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,8 +28,9 @@ import {
 } from "@/components/ui/select"
 import { useAddJob } from "@/lib/hooks/useJobs"
 import { useTrainings } from "@/lib/hooks/useTrainings"
-import { useSessions } from "@/lib/hooks/useSession"
-import { Loader2, Calendar, Clock, Check, ChevronsUpDown } from "lucide-react"
+import { useCohorts } from "@/lib/hooks/useCohorts"
+import { useCohortSessions } from "@/lib/hooks/useSession"
+import { Loader2, Calendar, Clock, Check, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Update Zod Schema for date and time
@@ -42,6 +38,7 @@ const createJobSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters long"),
   description: z.string().min(10, "Description must be at least 10 characters long"),
   trainingId: z.string({ required_error: "Training must be selected" }), 
+  cohortId: z.string({ required_error: "Cohort must be selected" }),
   // Separate date and time fields
   deadlineDate: z.string({ required_error: "Application deadline date is required" })
                  .refine(val => val && !isNaN(Date.parse(val)), {
@@ -91,29 +88,34 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
   const { addJob, isLoading: isSubmitting, isSuccess: isSubmitSuccess } = useAddJob()
 
   const [selectedTrainingId, setSelectedTrainingId] = useState<string | undefined>(undefined)
-  const [openSessionsPopover, setOpenSessionsPopover] = useState(false)
+  const [selectedCohortId, setSelectedCohortId] = useState<string | undefined>(undefined)
 
   // Fetch Trainings
   const { data: trainingsData, isLoading: trainingsLoading, error: trainingsError } = useTrainings({
     isArchived: false // Fetch only active trainings
   });
 
-  // Fetch Sessions based on selected Training
-  const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError } = useSessions({
-    trainingIds: selectedTrainingId ? [selectedTrainingId] : [], // Pass selected training ID
+  // Fetch Cohorts based on selected Training
+  const { data: cohortsData, isLoading: cohortsLoading, error: cohortsError } = useCohorts({
+    trainingId: selectedTrainingId || "", // Pass selected training ID
   });
 
-  // Safe access to sessions data
-  const safeSessions = sessionsData?.sessions?.length
-    ? sessionsData.sessions
-    : [];
+  // Fetch Sessions based on selected Cohort
+  const { data: sessionsData, isLoading: sessionsLoading, error: sessionsError } = useCohortSessions({
+    cohortId: selectedCohortId || "", // Pass selected cohort ID
+  });
+
+  // Safe access to cohorts and sessions data
+  const safeCohorts = cohortsData?.cohorts?.length ? cohortsData.cohorts : [];
+  const safeSessions = sessionsData?.sessions?.length ? sessionsData.sessions : [];
 
   const form = useForm<CreateJobFormValues>({
     resolver: zodResolver(createJobSchema),
     defaultValues: {
       title: "",
       description: "",
-      trainingId: undefined,
+      trainingId: "",
+      cohortId: "",
       deadlineDate: "", 
       deadlineTime: "09:00", // Default time to 9:00 AM
       sessionIds: [],
@@ -124,7 +126,10 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
   const sessionIds = form.watch("sessionIds");
 
   // Map Trainings to Select options
-  const trainingOptions = trainingsData?.trainings?.map(t => ({ value: t.id, label: t.title })) || []; // Assuming t.title exists
+  const trainingOptions = trainingsData?.trainings?.map(t => ({ value: t.id, label: t.title })) || [];
+
+  // Map Cohorts to Select options
+  const cohortOptions = safeCohorts.map(c => ({ value: c.id, label: c.name }));
 
   // Handle session selection toggle
   const handleSelectSession = (sessionId: string) => {
@@ -139,6 +144,13 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
       newSessionIds = [...currentSessionIds, sessionId];
     }
     
+    form.setValue('sessionIds', newSessionIds, { shouldValidate: true });
+  };
+
+  // Remove session from selection
+  const handleRemoveSession = (sessionId: string) => {
+    const currentSessionIds = form.getValues("sessionIds");
+    const newSessionIds = currentSessionIds.filter(id => id !== sessionId);
     form.setValue('sessionIds', newSessionIds, { shouldValidate: true });
   };
 
@@ -162,16 +174,26 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
     if (isSubmitSuccess) {
       form.reset();
       setSelectedTrainingId(undefined); 
+      setSelectedCohortId(undefined);
       onClose(); 
     }
   }, [isSubmitSuccess, onClose]);
 
-  // Reset session selection when training changes
+  // Reset cohort and session selection when training changes
   useEffect(() => {
     if (selectedTrainingId) {
+      setSelectedCohortId(undefined);
+      form.setValue("cohortId", "", { shouldValidate: true });
       form.setValue("sessionIds", [], { shouldValidate: true });
     }
   }, [selectedTrainingId]);
+
+  // Reset session selection when cohort changes
+  useEffect(() => {
+    if (selectedCohortId) {
+      form.setValue("sessionIds", [], { shouldValidate: true });
+    }
+  }, [selectedCohortId]);
 
   // Prevent closing modal by clicking outside or pressing Esc
   const handleInteractOutside = (event: Event) => {
@@ -182,17 +204,17 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
     setSelectedTrainingId(trainingId);
     form.setValue("trainingId", trainingId, { shouldValidate: true });
   }
+
+  const handleCohortChange = (cohortId: string) => {
+    setSelectedCohortId(cohortId);
+    form.setValue("cohortId", cohortId, { shouldValidate: true });
+  }
   
   // Helper to get current date string in YYYY-MM-DD format
   const getMinDate = () => {
     const now = new Date();
     return now.toISOString().split('T')[0];
   }
-
-  // Toggle sessions popover
-  const toggleSessionsPopover = () => {
-    setOpenSessionsPopover(prev => !prev);
-  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -262,60 +284,94 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
             )}
           </div>
 
-          {/* Select Sessions - Using normal div structure to ensure visibility */}
+          {/* Select Cohort */}
+          <div className="space-y-2">
+            <Label htmlFor="cohortId">Select Cohort</Label>
+            <Select 
+              onValueChange={handleCohortChange}
+              value={selectedCohortId}
+              disabled={!selectedTrainingId || cohortsLoading || isSubmitting}
+            >
+              <SelectTrigger id="cohortId">
+                <SelectValue placeholder={
+                  !selectedTrainingId 
+                    ? "Select a training first" 
+                    : cohortsLoading 
+                      ? "Loading cohorts..." 
+                      : "Select a cohort"
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {cohortsError ? (
+                  <SelectItem value="error" disabled>Error loading cohorts</SelectItem>
+                ) : cohortOptions.length === 0 && !cohortsLoading && selectedTrainingId ? (
+                   <SelectItem value="no-cohorts" disabled>No cohorts found for this training</SelectItem>
+                ) : (
+                  cohortOptions.map(option => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.cohortId && (
+              <p className="text-sm text-red-600">{form.formState.errors.cohortId.message}</p>
+            )}
+          </div>
+
+          {/* Select Sessions */}
           <div className="space-y-2">
             <Label htmlFor="sessions">Select Sessions</Label>
-            <div className="w-full relative">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full justify-between py-6"
-                onClick={toggleSessionsPopover}
-                disabled={!selectedTrainingId || sessionsLoading || isSubmitting || !!sessionsError}
-              >
-                <div className="flex flex-wrap gap-1 items-center">
-                  {sessionIds && sessionIds.length > 0 ? (
-                    <>
-                      {sessionIds.slice(0, 1).map((id, index) => {
-                        const session = safeSessions.find((s: Session) => s.id === id);
-                        return (
-                          <Badge key={`session-${id}-${index}`} variant="pending">
-                            {session?.name}
-                          </Badge>
-                        );
-                      })}
-                      {sessionIds.length > 1 && (
-                        <span className="text-sm text-gray-500 ml-1">
-                          + {sessionIds.length - 1} more
-                        </span>
+            
+            {/* Selected Sessions Display */}
+            {sessionIds && sessionIds.length > 0 && (
+              <div className="flex flex-wrap gap-2 p-3 border rounded-md bg-gray-50 min-h-[2.5rem]">
+                {sessionIds.map((id) => {
+                  const session = safeSessions.find((s: Session) => s.id === id);
+                  return (
+                    <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                      {session?.name || 'Unknown Session'}
+                      <X 
+                        className="h-3 w-3 cursor-pointer" 
+                        onClick={() => handleRemoveSession(id)}
+                      />
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+
+            <Select 
+              onValueChange={handleSelectSession}
+              value="" // Always empty to allow multiple selections
+              disabled={!selectedCohortId || sessionsLoading || isSubmitting}
+            >
+              <SelectTrigger id="sessions">
+                <SelectValue placeholder={
+                  !selectedCohortId 
+                    ? "Select a cohort first" 
+                    : sessionsLoading 
+                      ? "Loading sessions..." 
+                      : sessionIds.length > 0
+                        ? `${sessionIds.length} session${sessionIds.length === 1 ? '' : 's'} selected`
+                        : "Select sessions..."
+                } />
+              </SelectTrigger>
+              <SelectContent>
+                {sessionsError ? (
+                  <SelectItem value="error" disabled>Error loading sessions</SelectItem>
+                ) : safeSessions.length === 0 && !sessionsLoading && selectedCohortId ? (
+                   <SelectItem value="no-sessions" disabled>No sessions found for this cohort</SelectItem>
+                ) : (
+                  safeSessions.map((session: Session) => (
+                    <SelectItem 
+                      key={session.id} 
+                      value={session.id}
+                      className={cn(
+                        "flex items-center",
+                        sessionIds.includes(session.id) && "bg-blue-50"
                       )}
-                    </>
-                  ) : (
-                    <span>
-                      {!selectedTrainingId 
-                        ? "Select a training first" 
-                        : sessionsLoading 
-                          ? "Loading sessions..." 
-                          : "Select sessions for this job..."}
-                    </span>
-                  )}
-                </div>
-                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-              </Button>
-              
-              {/* Manual dropdown that shows regardless of Popover state */}
-              {openSessionsPopover && (
-                <div className="absolute z-50 w-full mt-1 border rounded-md bg-white shadow-lg max-h-[300px] overflow-auto">
-                  {safeSessions.length > 0 ? (
-                    safeSessions.map((session: Session) => (
-                      <div
-                        key={session.id}
-                        className={cn(
-                          "flex items-center px-4 py-2 text-sm cursor-pointer hover:bg-gray-100",
-                          sessionIds.includes(session.id) && "bg-gray-100"
-                        )}
-                        onClick={() => handleSelectSession(session.id)}
-                      >
+                    >
+                      <div className="flex items-center w-full">
                         <Check
                           className={cn(
                             "mr-2 h-4 w-4",
@@ -324,19 +380,11 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
                         />
                         {session.name}
                       </div>
-                    ))
-                  ) : (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                      {sessionsError 
-                        ? "Error loading sessions" 
-                        : selectedTrainingId && !sessionsLoading 
-                          ? "No sessions available for this training" 
-                          : "Please select a training first"}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
             
             {form.formState.errors.sessionIds && (
               <p className="text-sm text-red-600">{form.formState.errors.sessionIds.message}</p>
@@ -398,7 +446,7 @@ export function CreateJobModal({ isOpen, onClose }: CreateJobModalProps) {
 
           <DialogFooter className="pt-6">
             <DialogClose asChild>
-              <Button type="button" variant="outline" onClick={() => { form.reset(); setSelectedTrainingId(undefined); onClose(); }} disabled={isSubmitting}>
+              <Button type="button" variant="outline" onClick={() => { form.reset(); setSelectedTrainingId(undefined); setSelectedCohortId(undefined); onClose(); }} disabled={isSubmitting}>
                 Back
               </Button>
             </DialogClose>

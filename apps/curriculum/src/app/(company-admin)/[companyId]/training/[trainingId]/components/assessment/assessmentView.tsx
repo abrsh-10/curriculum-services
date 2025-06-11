@@ -1,12 +1,13 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { Button } from "@/components/ui/button"
 import { Loading } from "@/components/ui/loading"
 import { Plus } from "lucide-react"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
+import { Filter } from "@/components/ui/filter"
 import { useDebounce } from "@/lib/hooks/useDebounce"
 import { 
   TrainingAssessment, 
@@ -32,6 +33,7 @@ export function AssessmentView({ trainingId }: CatViewProps) {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [searchQuery, setSearchQuery] = useState("")
+  const [assessmentTypeFilter, setAssessmentTypeFilter] = useState<string[]>([])
   const [showModal, setShowModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [currentAssessmentId, setCurrentAssessmentId] = useState<string | null>(null)
@@ -48,7 +50,16 @@ export function AssessmentView({ trainingId }: CatViewProps) {
     isCurriculumAdmin 
   } = useUserRole()
   
-  const { data, isLoading } = useTrainingAssessments(trainingId)
+  // Create filter object for API call
+  const apiFilters = useMemo(() => {
+    const filters: { type?: string } = {}
+    if (assessmentTypeFilter.length === 1) {
+      filters.type = assessmentTypeFilter[0]
+    }
+    return Object.keys(filters).length > 0 ? filters : undefined
+  }, [assessmentTypeFilter])
+  
+  const { data, isLoading } = useTrainingAssessments(trainingId, apiFilters)
   const createAssessmentMutation = useCreateTrainingAssessment()
   const updateAssessmentMutation = useUpdateTrainingAssessment()
   const deleteAssessmentMutation = useDeleteTrainingAssessment()
@@ -85,6 +96,11 @@ export function AssessmentView({ trainingId }: CatViewProps) {
     setAssignSessionModalOpen(true)
   }, [isCurriculumAdmin])
   
+  const handleFilterApply = useCallback((filters: { selectedAttributes: string[] }) => {
+    // setAssessmentTypeFilter(filters.selectedAttributes)
+    // setPage(1) // Reset to first page when applying filters
+  }, [])
+  
   const confirmDelete = useCallback(async () => {
     if (assessmentToDelete) {
       try {
@@ -101,7 +117,7 @@ export function AssessmentView({ trainingId }: CatViewProps) {
     setShowModal(false)
   }, [])
 
-  const handleSubmitAssessment = useCallback(async (assessmentData: { name: string; description: string; fileLink: string }) => {
+  const handleSubmitAssessment = useCallback(async (assessmentData: { name: string; description: string; fileLink: string; trainingAssessmentType: 'PRE' | 'POST' }) => {
     try {
       if (isEditing && currentAssessmentId) {
         await updateAssessmentMutation.mutateAsync({
@@ -133,10 +149,20 @@ export function AssessmentView({ trainingId }: CatViewProps) {
     totalElements,
     totalPages 
   } = useMemo(() => {
-    const filtered = data?.trainingAssessments?.filter(assessment => 
-      assessment?.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-      assessment?.description?.toLowerCase().includes(debouncedSearch.toLowerCase())
-    ) || []
+    // Convert single assessment object to array if needed, or use array if it's already an array
+    const assessments = Array.isArray(data?.trainingAssessment) 
+      ? data.trainingAssessment 
+      : data?.trainingAssessment ? [data.trainingAssessment] : []
+
+    const filtered = assessments.filter((assessment: TrainingAssessment) => {
+      // Apply text search filter only - assessment type filter is handled by API
+      const matchesSearch = assessment?.name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        assessment?.description?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (assessment?.trainingAssessmentType === 'PRE' ? 'pre-training' : 'post-training').includes(debouncedSearch.toLowerCase()) ||
+        (assessment?.trainingAssessmentType === 'PRE' ? 'pre' : 'post').includes(debouncedSearch.toLowerCase())
+      
+      return matchesSearch
+    }) || []
 
     const total = filtered.length || 0
     const totalPgs = Math.ceil(total / pageSize)
@@ -152,7 +178,7 @@ export function AssessmentView({ trainingId }: CatViewProps) {
       totalElements: total,
       totalPages: totalPgs
     }
-  }, [data?.trainingAssessments, debouncedSearch, page, pageSize])
+  }, [data?.trainingAssessment, debouncedSearch, page, pageSize])
 
   // Add the actions column to the existing columns
   const columnsWithActions = useMemo<ColumnDef<TrainingAssessment>[]>(() => {
@@ -211,7 +237,7 @@ export function AssessmentView({ trainingId }: CatViewProps) {
       <div className="flex-1 py-4 md:pl-12 min-w-0">
         <h1 className="text-lg font-semibold mb-6">Assessments</h1>
 
-        {!data?.trainingAssessments?.length ? (
+        {!data?.trainingAssessment || (Array.isArray(data.trainingAssessment) ? !data.trainingAssessment.length : false) ? (
           <div className="px-[7%] py-8">
             {emptyState}
           </div>
@@ -233,6 +259,18 @@ export function AssessmentView({ trainingId }: CatViewProps) {
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
               </div>
+              
+              <Filter
+                attributeOptions={[
+                  { id: 'PRE', label: 'Pre-Training' },
+                  { id: 'POST', label: 'Post-Training' },
+                ]}
+                onApply={handleFilterApply}
+                defaultSelected={{
+                  attributes: assessmentTypeFilter
+                }}
+              />
+              
               {canAddEditAssessments && (
                 <Button
                   className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2"
@@ -266,7 +304,12 @@ export function AssessmentView({ trainingId }: CatViewProps) {
             isOpen={showModal}
             onClose={handleCloseModal}
             isEditing={isEditing}
-            assessment={isEditing ? data?.trainingAssessments?.find(a => a.id === currentAssessmentId) || null : null}
+            assessment={isEditing ? (() => {
+              const assessments = Array.isArray(data?.trainingAssessment) 
+                ? data.trainingAssessment 
+                : data?.trainingAssessment ? [data.trainingAssessment] : []
+              return assessments.find((a: TrainingAssessment) => a.id === currentAssessmentId) || null
+            })() : null}
             isSubmitting={isEditing ? updateAssessmentMutation.isPending : createAssessmentMutation.isPending}
             onSubmit={handleSubmitAssessment}
           />

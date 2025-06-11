@@ -14,9 +14,8 @@ import {
   DialogClose
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
-// import PreAssessmentModal from "./pre-assessment/pre-assessmnet-modal"
-import CatAssessmentModal from "./cat-assessment-modal"
-import { useSessionAssessments } from "@/lib/hooks/useTrainingAssessment"
+import AssessmentModal from "./assessment-modal"
+import { Session } from "@/lib/hooks/useSession"
 
 // Define the student type for attendance
 export interface AttendanceStudent {
@@ -100,7 +99,7 @@ function CommentDialog({
   )
 }
 
-export const createAttendanceColumns = (sessionId: string, canEditAssessment: boolean = false) => {
+export const createAttendanceColumns = (sessionId: string, canEditAssessment: boolean = false, session?: Session, trainingId?: string) => {
   const columns: ColumnDef<AttendanceStudent>[] = [
     {
       accessorKey: "name",
@@ -210,7 +209,11 @@ export const createAttendanceColumns = (sessionId: string, canEditAssessment: bo
         )
       },
     },
-    {
+  ];
+
+  // Only add assessment column if session has first or last flag
+  if (session && (session.first || session.last)) {
+    columns.push({
       accessorKey: "assessment",
       header: "Assessment",
       cell: ({ row }) => {
@@ -224,10 +227,12 @@ export const createAttendanceColumns = (sessionId: string, canEditAssessment: bo
           student={student}
           canEditAssessment={canEditAssessment}
           isDisabled={isDisabled}
+          session={session}
+          trainingId={trainingId}
         />;
       },
-    },
-  ];
+    });
+  }
   
   return columns;
 };
@@ -237,65 +242,70 @@ function SessionAssessmentCell({
   sessionId, 
   student, 
   canEditAssessment,
-  isDisabled 
+  isDisabled,
+  session,
+  trainingId
 }: { 
   sessionId: string;
   student: AttendanceStudent;
   canEditAssessment: boolean;
   isDisabled: boolean;
+  session?: Session;
+  trainingId?: string;
 }) {
-  // Fetch assessments for this session
-  const { data: assessmentsData, isLoading } = useSessionAssessments(sessionId);
-  const assessments = assessmentsData?.trainingAssessments || [];
   const fullName = `${student.firstName} ${student.lastName}`;
   
-  if (!sessionId) {
+  if (!sessionId || !session) {
     return <span className="text-xs text-gray-400">Session not available</span>;
   }
   
   if (!canEditAssessment) {
     return null; // Don't show anything for non-authorized roles
   }
+
+  // Determine assessment type based on session flags
+  const isFirstSession = session.first;
+  const isLastSession = session.last;
   
-  if (isLoading) {
-    return <span className="text-xs text-gray-400">Loading assessments...</span>;
-  }
-  
-  // No assessments assigned to this session
-  if (assessments.length === 0) {
-    return (
-      <div className="flex items-center">
-        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">
-          No assessment added
-        </span>
-      </div>
-    );
+  // If session is neither first nor last, don't show assessment
+  if (!isFirstSession && !isLastSession) {
+    return null;
   }
   
   // Check if the student has filled any assessment
   const hasFilledAssessment = typeof student.answerFileLink === 'string' && student.answerFileLink;
   
-  // Assessments exist, show the modal
+  // Use the passed trainingId or fallback
+  const effectiveTrainingId = trainingId || '';
+  
+  // Determine the assessment type and labels
+  const assessmentType = isFirstSession ? 'PRE' : 'POST';
+  const assessmentTypeLabel = isFirstSession ? 'Pre' : 'Post';
+  const filledLabel = isFirstSession ? 'Pre-assessment filled' : 'Post-assessment filled';
+  const buttonLabel = hasFilledAssessment 
+    ? `View/Edit ${assessmentTypeLabel}` 
+    : `Add ${assessmentTypeLabel}-Assessment`;
+    
   return (
     <div className="flex items-center gap-2">
       {hasFilledAssessment && (
         <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">
-          Assessment filled
+          {filledLabel}
         </span>
       )}
       
-      <CatAssessmentModal
-        sessionId={sessionId}
+      <AssessmentModal
+        trainingId={effectiveTrainingId}
         studentId={student.id}
         studentName={fullName}
-        currentAnswer={typeof student.answerFileLink === 'string' ? student.answerFileLink : ""}
+        assessmentType={assessmentType}
         trigger={
           <Button
             variant="outline"
             className={`text-blue-600 border-blue-600 text-xs h-7 px-2 hover:bg-blue-50 ${isDisabled ? 'opacity-50 pointer-events-none' : ''}`}
             disabled={isDisabled}
           >
-            {hasFilledAssessment ? "View/Edit" : "Add Assessment"}
+            {buttonLabel}
           </Button>
         }
       />

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { cn } from "@/lib/utils"
@@ -28,7 +28,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 
 import { Module } from "@/types/module"
-import { useAddSession } from "@/lib/hooks/useSession"
+import { useAddSession, useAddCohortSession, useUpdateSession, useSession } from "@/lib/hooks/useSession"
 import { useModulesByTrainingId } from "@/lib/hooks/useModule"
 import { useGetLessons } from "@/lib/hooks/useLesson"
 import { useTrainingVenues } from "@/lib/hooks/useTrainingVenue"
@@ -43,16 +43,16 @@ const formatDateForInput = (date: Date | null | undefined): string => {
   return adjustedDate.toISOString().split("T")[0]
 }
 
-// Helper function to parse YYYY-MM-DD string to Date (handling potential empty string)
-const parseDateFromInput = (dateString: string): Date | null => {
-  if (!dateString) return null
-  // Parse string assuming local timezone midnight to avoid timezone shifts.
-  return new Date(dateString + 'T00:00:00')
+// Helper function to convert date string to date object
+const parseDate = (dateString: string): Date => {
+  return new Date(dateString)
 }
 
 interface SessionFormProps {
   trainingId: string
   companyId: string
+  cohortId?: string // Optional for cohort sessions
+  sessionId?: string // Optional for editing
   onSuccess: () => void
   onCancel: () => void
 }
@@ -66,19 +66,57 @@ interface ModuleWithRelationship extends Module {
   } | null;
 }
 
-export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: SessionFormProps) {
+export function SessionForm({ trainingId, companyId, cohortId, sessionId, onSuccess, onCancel }: SessionFormProps) {
+  // Determine if we're editing
+  const isEditing = !!sessionId
+  
+  // Fetch session data if editing
+  const { data: existingSession, isLoading: isLoadingSession } = useSession(sessionId || '')
+  
   // Fetch required data
   const { addSession, isLoading: isAddingSession } = useAddSession()
+  const { addCohortSession, isLoading: isAddingCohortSession } = useAddCohortSession()
+  const { updateSession, isLoading: isUpdatingSession } = useUpdateSession()
   const { data: modulesData, isLoading: isLoadingModules } = useModulesByTrainingId(trainingId, true)
   const { data: venuesData, isLoading: isLoadingVenues } = useTrainingVenues()
   
-  // State for selected module to filter lessons
-  const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null)
+  // State for selected modules to filter lessons
+  const [selectedModuleIds, setSelectedModuleIds] = useState<string[]>([])
   const [selectedSubModuleId, setSelectedSubModuleId] = useState<string | null>(null)
+  
+  // Track which module is currently active for UI display
+  const [activeModuleId, setActiveModuleId] = useState<string | null>(null)
 
-  // Fetch lessons for the selected module or submodule
-  const moduleIdToFetch = selectedSubModuleId || selectedModuleId
+  // Fetch lessons for the selected active module
+  const moduleIdToFetch = selectedSubModuleId || activeModuleId
   const { data: lessonsByModule, isLoading: isLoadingLessons } = useGetLessons(moduleIdToFetch || '')
+  
+  // Import Lesson type from useLesson hook for proper typing
+  interface Lesson {
+    id: string
+    name: string
+    description: string
+    objective: string
+    duration: number
+    durationType: "HOURS" | "DAYS" | "WEEKS" | "MONTHS"
+    moduleId: string
+  }
+
+  // State to track all fetched lessons across modules
+  const [allLessonsByModule, setAllLessonsByModule] = useState<Record<string, Lesson[]>>({})
+  
+  // Update lessons when a module is selected
+  useEffect(() => {
+    if (moduleIdToFetch) {
+      // When lessons are loaded for a module, store them
+      if (lessonsByModule && !isLoadingLessons) {
+        setAllLessonsByModule(prev => ({
+          ...prev,
+          [moduleIdToFetch]: lessonsByModule
+        }))
+      }
+    }
+  }, [moduleIdToFetch, lessonsByModule, isLoadingLessons])
   
   // Form setup
   const form = useForm<SessionFormValues>({
@@ -99,17 +137,74 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
       trainerCompensationAmount: 0,
       numberOfAssistantTrainer: 0,
       assistantTrainerCompensationAmount: 0,
+      isFirst: false,
+      isLast: false,
     },
   })
+
+  // Memoize the formatTime function to prevent unnecessary re-renders
+  const formatTime = useCallback((date: Date) => {
+    const hours = date.getHours()
+    const minutes = date.getMinutes()
+    const ampm = hours >= 12 ? 'PM' : 'AM'
+    const displayHours = hours % 12 || 12
+    const displayMinutes = minutes.toString().padStart(2, '0')
+    return `${displayHours}:${displayMinutes} ${ampm}`
+  }, [])
+
+  // Populate form with existing data when editing
+  useEffect(() => {
+    if (isEditing && existingSession && !isLoadingSession) {
+      // Extract time from datetime strings
+      const startDateTime = new Date(existingSession.startDate)
+      const endDateTime = new Date(existingSession.endDate)
+
+      form.reset({
+        name: existingSession.name,
+        lessonIds: existingSession.lessons.map(lesson => lesson.id),
+        deliveryMethod: existingSession.deliveryMethod,
+        startDate: startDateTime,
+        startTime: formatTime(startDateTime),
+        endDate: endDateTime,
+        endTime: formatTime(endDateTime),
+        numberOfStudents: existingSession.numberOfStudents,
+        trainingVenueId: existingSession.trainingVenue?.id || "",
+        meetsRequirement: existingSession.meetsRequirement,
+        requirementRemark: existingSession.requirementRemark || "",
+        trainerCompensationType: existingSession.trainerCompensationType,
+        trainerCompensationAmount: existingSession.trainerCompensationAmount,
+        numberOfAssistantTrainer: existingSession.numberOfAssistantTrainers,
+        assistantTrainerCompensationType: existingSession.assistantTrainerCompensationType,
+        assistantTrainerCompensationAmount: existingSession.assistantTrainerCompensationAmount,
+        trainingLink: existingSession.trainingLink || "",
+        isFirst: existingSession.first || false,
+        isLast: existingSession.last || false,
+      })
+    }
+  }, [isEditing, existingSession, isLoadingSession, formatTime])
+
+                // Auto-detect module/submodule based on selected lessons when editing
+  useEffect(() => {
+    if (isEditing && existingSession && modulesData?.modules && existingSession.lessons.length > 0) {
+      // For edit mode, if we can't auto-detect the module from lessons,
+      // we'll select the first main module as a fallback so users can see lessons
+      const allModules = modulesData.modules as ModuleWithRelationship[]
+      const mainModules = allModules.filter(moduleItem => !moduleItem.parentModule)
+      
+      if (mainModules.length > 0) {
+        // Set the first main module as selected to enable lesson viewing
+        setSelectedModuleIds([mainModules[0].id])
+        setActiveModuleId(mainModules[0].id)
+      }
+    }
+  }, [isEditing, existingSession, modulesData])
   
   // Get modules and submodules
   const modules = (modulesData?.modules || []) as ModuleWithRelationship[]
-  const mainModules = modules.filter(module => !module.parentModule)
+  const mainModules = modules.filter(m => !m.parentModule)
   
   // Get submodules for selected module
-  const subModules = selectedModuleId 
-    ? modules.filter(module => module.parentModule?.id === selectedModuleId)
-    : []
+  const subModules = modules.filter(m => m.parentModule !== null && m.parentModule !== undefined)
   
   // Handler for form submission
   const onSubmit = (values: SessionFormValues) => {
@@ -161,7 +256,9 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
         : "PER_HOUR",
       assistantTrainerCompensationAmount: values.numberOfAssistantTrainer > 0 
         ? (values.assistantTrainerCompensationAmount || 0) 
-        : 0
+        : 0,
+      isFirst: values.isFirst === true ? true : false,
+      isLast: values.isLast === true ? true : false,
     }
     
     // Add training link only for online or self-paced delivery
@@ -169,23 +266,64 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
       sessionData.trainingLink = values.trainingLink
     }
     
-    // Add session
-    addSession({ trainingId, sessionData }, {
-      onSuccess: () => {
-        toast.success("Session added successfully")
-        onSuccess()
-      },
-      onError: (error) => {
-        toast.error("Failed to add session")
-        console.error(error)
+    if (isEditing && sessionId) {
+      // Update existing session
+      updateSession({ sessionId, sessionData }, {
+        onSuccess: () => {
+          toast.success('Session updated successfully')
+          onSuccess()
+        },
+        onError: (error) => {
+          console.error(error)
+        }
+      })
+    } else if (cohortId) {
+      // Add session to cohort
+      const cohortSessionData = {
+        ...sessionData,
+        cohortId
       }
-    })
+      addCohortSession({ cohortId, sessionData: cohortSessionData }, {
+        onSuccess: () => {
+          toast.success('Session added to cohort successfully')
+          onSuccess()
+        },
+        onError: (error) => {
+          console.error(error)
+        }
+      })
+    } else {
+      // Add session to training
+      addSession({ trainingId, sessionData }, {
+        onSuccess: () => {
+          toast.success('Session created successfully')
+          onSuccess()
+        },
+        onError: (error) => {
+          console.error(error)
+        }
+      })
+    }
   }
   
   // Watch form values to enable/disable certain fields
   const meetsRequirement = form.watch("meetsRequirement")
   const deliveryMethod = form.watch("deliveryMethod")
   const numberOfAssistantTrainer = form.watch("numberOfAssistantTrainer")
+  
+  const isLoading = isAddingSession || isAddingCohortSession || isUpdatingSession || isLoadingSession
+
+  // Show loading if we're fetching session data for editing
+  if (isEditing && isLoadingSession) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading session data...</p>
+        </div>
+      </div>
+    )
+  }
   
   return (
     <div className="relative">
@@ -207,10 +345,66 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                   </FormItem>
                 )}
               />
+
+              {/* Session Type Tags */}
+              <div className="space-y-4">
+                <Label>Session Type (Optional)</Label>
+                <div className="flex gap-6">
+                  <FormField
+                    control={form.control}
+                    name="isFirst"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={Boolean(field.value)}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true)
+                            }}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            First Session
+                          </FormLabel>
+                          <p className="text-xs text-muted-foreground">
+                            Mark as the first session in the sequence
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="isLast"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                        <FormControl>
+                          <Checkbox
+                            checked={Boolean(field.value)}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true)
+                            }}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Last Session
+                          </FormLabel>
+                          <p className="text-xs text-muted-foreground">
+                            Mark as the final session in the sequence
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
               
               {/* Module Selection */}
               <div className="space-y-2">
-                <Label>Select Module</Label>
+                <Label>Select Modules</Label>
                 {isLoadingModules ? (
                   <div className="py-2 px-3 border rounded-md text-sm text-gray-500">Loading modules...</div>
                 ) : mainModules.length === 0 ? (
@@ -223,162 +417,262 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                     </p>
                   </div>
                 ) : (
-                  <Select 
-                    onValueChange={(value) => {
-                      setSelectedModuleId(value)
-                      setSelectedSubModuleId(null)
-                      form.setValue("lessonIds", [])
-                    }}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a module" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {mainModules.map((module) => (
-                        <SelectItem key={module.id} value={module.id}>
-                          {module.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <div className="space-y-4">
+                    <div className="border rounded-md p-3">
+                      <p className="text-sm font-medium mb-2">Select one or more modules to include lessons from:</p>
+                      <div className="space-y-2">
+                        {mainModules.map((module) => (
+                          <div key={module.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`module-${module.id}`}
+                              checked={selectedModuleIds.includes(module.id)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  // Add module to selected modules
+                                  setSelectedModuleIds(prev => [...prev, module.id]);
+                                  setActiveModuleId(module.id);
+                                  // Reset submodule selection
+                                  setSelectedSubModuleId(null);
+                                } else {
+                                  // Remove module from selected modules
+                                  setSelectedModuleIds(prev => prev.filter(id => id !== module.id));
+                                  // Also remove any selected lessons from this module
+                                  const currentLessons = form.getValues("lessonIds");
+                                  const moduleLessons = allLessonsByModule[module.id] || [];
+                                  const lessonIdsToRemove = moduleLessons.map(lesson => lesson.id);
+                                  form.setValue(
+                                    "lessonIds", 
+                                    currentLessons.filter(id => !lessonIdsToRemove.includes(id))
+                                  );
+                                  // Update active module if needed
+                                  if (activeModuleId === module.id) {
+                                    setActiveModuleId(selectedModuleIds.filter(id => id !== module.id)[0] || null);
+                                  }
+                                }
+                              }}
+                            />
+                            <label
+                              htmlFor={`module-${module.id}`}
+                              className="text-sm font-medium leading-none cursor-pointer"
+                              onClick={() => {
+                                if (selectedModuleIds.includes(module.id)) {
+                                  setActiveModuleId(module.id);
+                                  setSelectedSubModuleId(null);
+                                }
+                              }}
+                            >
+                              {module.name}
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Display selected modules */}
+                    {selectedModuleIds.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedModuleIds.map((id) => {
+                          const foundModule = mainModules.find(m => m.id === id);
+                          return (
+                            <Badge 
+                              key={id} 
+                              variant={activeModuleId === id ? "pending" : "secondary"}
+                              className="px-3 py-1.5 text-sm flex items-center cursor-pointer"
+                              onClick={() => {
+                                setActiveModuleId(id);
+                                setSelectedSubModuleId(null);
+                              }}
+                            >
+                              {foundModule?.name || id}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
               
               {/* Submodule Selection (Optional) */}
-              {subModules.length > 0 && (
+              {activeModuleId && subModules.filter(m => m.parentModule?.id === activeModuleId).length > 0 && (
                 <div className="space-y-2">
                   <Label>Select Submodule (Optional)</Label>
                   <Select 
+                    value={selectedSubModuleId || ""}
                     onValueChange={(value) => {
-                      setSelectedSubModuleId(value)
-                      form.setValue("lessonIds", [])
+                      setSelectedSubModuleId(value);
                     }}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select a submodule" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subModules.map((module) => (
-                        <SelectItem key={module.id} value={module.id}>
-                          {module.name}
-                        </SelectItem>
-                      ))}
+                      {subModules
+                        .filter(m => m.parentModule?.id === activeModuleId)
+                        .map((subModule) => (
+                          <SelectItem key={subModule.id} value={subModule.id}>
+                            {subModule.name}
+                          </SelectItem>
+                        ))
+                      }
                     </SelectContent>
                   </Select>
                 </div>
               )}
               
-              {/* Lesson Selection - Replaced with enhanced checkbox list */}
+              {/* Lesson Selection */}
               <FormField
                 control={form.control}
                 name="lessonIds"
                 render={({ field }) => (
                   <FormItem className="relative">
                     <FormLabel>Select Lessons</FormLabel>
+                    
+                    {/* Show existing lessons in edit mode */}
+                    {isEditing && existingSession && existingSession.lessons.length > 0 && (
+                      <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                        <p className="text-sm font-medium text-blue-800 mb-2">Current Session Lessons:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {existingSession.lessons.map((lesson) => (
+                            <Badge key={lesson.id} variant="secondary" className="px-2 py-1">
+                              {lesson.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     <div className="border rounded-md p-3">
-                      {!moduleIdToFetch ? (
+                      {selectedModuleIds.length === 0 ? (
                         <div className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-md bg-gray-50">
                           <p className="text-sm text-gray-600 text-center">
-                            Please select a module first to view available lessons
+                            Please select one or more modules first to view available lessons
                           </p>
-                        </div>
-                      ) : isLoadingLessons ? (
-                        <div className="py-3 text-sm text-gray-500 text-center">
-                          Loading lessons...
-                        </div>
-                      ) : lessonsByModule && lessonsByModule.length > 0 ? (
-                        <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs text-muted-foreground">
-                              {field.value?.length || 0} of {lessonsByModule.length} selected
-                            </p>
-                            {field.value?.length > 0 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => field.onChange([])}
-                                className="text-xs h-6 px-2 text-muted-foreground hover:text-foreground"
-                              >
-                                Clear all
-                              </Button>
-                            )}
-                          </div>
-                          <div className="space-y-1 max-h-[200px] overflow-y-auto pr-2">
-                            {lessonsByModule.map((lesson) => (
-                              <div 
-                                key={lesson.id} 
-                                className={cn(
-                                  "flex items-center space-x-2 p-2 rounded transition-colors",
-                                  field.value?.includes(lesson.id) 
-                                    ? "bg-muted/50" 
-                                    : "hover:bg-muted/30"
-                                )}
-                              >
-                                <Checkbox
-                                  id={`lesson-${lesson.id}`}
-                                  checked={field.value?.includes(lesson.id)}
-                                  onCheckedChange={(checked) => {
-                                    const newValue = checked
-                                      ? [...(field.value || []), lesson.id]
-                                      : (field.value || []).filter((id) => id !== lesson.id)
-                                    field.onChange(newValue)
-                                  }}
-                                  className="data-[state=checked]:bg-brand data-[state=checked]:border-brand"
-                                />
-                                <Label 
-                                  htmlFor={`lesson-${lesson.id}`}
-                                  className="cursor-pointer flex-1 text-sm"
-                                >
-                                  {lesson.name}
-                                </Label>
-                              </div>
-                            ))}
-                          </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-md bg-gray-50">
-                          <p className="text-sm text-gray-600 text-center">
-                            No lessons available for this module
-                          </p>
+                        <div className="space-y-2">
+                          {/* Show all available lessons from selected modules in a single list */}
+                          {isLoadingLessons && moduleIdToFetch ? (
+                            <div className="py-3 text-sm text-gray-500 text-center">
+                              Loading lessons...
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {/* Current module's lessons */}
+                              {moduleIdToFetch && lessonsByModule && lessonsByModule.length > 0 && (
+                                lessonsByModule.map((lesson) => (
+                                  <div key={lesson.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={lesson.id}
+                                      checked={field.value.includes(lesson.id)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          field.onChange([...field.value, lesson.id])
+                                        } else {
+                                          field.onChange(field.value.filter((id) => id !== lesson.id))
+                                        }
+                                      }}
+                                    />
+                                    <label
+                                      htmlFor={lesson.id}
+                                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                    >
+                                      {lesson.name}
+                                    </label>
+                                  </div>
+                                ))
+                              )}
+
+                              {/* Lessons from all other selected modules */}
+                              {Object.entries(allLessonsByModule)
+                                .filter(([id]) => id !== moduleIdToFetch && selectedModuleIds.includes(id))
+                                .flatMap(([moduleId, lessons]) => 
+                                  lessons.map((lesson) => (
+                                    <div key={lesson.id} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        id={lesson.id}
+                                        checked={field.value.includes(lesson.id)}
+                                        onCheckedChange={(checked) => {
+                                          if (checked) {
+                                            field.onChange([...field.value, lesson.id])
+                                          } else {
+                                            field.onChange(field.value.filter((id) => id !== lesson.id))
+                                          }
+                                        }}
+                                      />
+                                      <label
+                                        htmlFor={lesson.id}
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                                      >
+                                        {lesson.name}
+                                      </label>
+                                    </div>
+                                  ))
+                                )
+                              }
+
+                              {/* Show message when no lessons are available */}
+                              {(!lessonsByModule || lessonsByModule.length === 0) && 
+                               Object.entries(allLessonsByModule).filter(([id]) => selectedModuleIds.includes(id)).length === 0 && (
+                                <div className="flex flex-col items-center justify-center p-4 border border-dashed border-gray-300 rounded-md bg-gray-50">
+                                  <p className="text-sm text-gray-600 text-center">
+                                    No lessons available for the selected modules
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
+                    
                     {field.value?.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {field.value.map((id) => {
-                          const lesson = lessonsByModule?.find(l => l.id === id);
-                          return (
-                            <Badge 
-                              key={id} 
-                              variant="pending"
-                              className="px-3 py-1.5 text-sm flex items-center"
-                            >
-                              <span className="mr-1">{lesson?.name || id}</span>
-                              <button
-                                type="button"
-                                className="ml-1 ring-offset-background rounded-full outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 hover:bg-secondary/20 p-0.5"
-                                onClick={() => {
-                                  field.onChange(field.value.filter(val => val !== id))
-                                }}
+                      <div className="mt-4">
+                        <div className="flex justify-between items-center mb-2">
+                          <p className="text-sm font-medium text-gray-700">
+                            Selected Lessons ({field.value.length})
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {field.value.map((id) => {
+                            // Try to find lesson in all available sources
+                            let displayLesson = null;
+                            
+                            // Check current active module's lessons
+                            if (lessonsByModule) {
+                              displayLesson = lessonsByModule.find(l => l.id === id);
+                            }
+                            
+                            // If not found, check all other modules' lessons
+                            if (!displayLesson) {
+                              for (const [moduleId, lessons] of Object.entries(allLessonsByModule)) {
+                                const lesson = lessons.find(l => l.id === id);
+                                if (lesson) {
+                                  displayLesson = lesson;
+                                  break;
+                                }
+                              }
+                            }
+                            
+                            // If still not found and we're editing, check existing session
+                            if (!displayLesson && isEditing && existingSession) {
+                              displayLesson = existingSession.lessons.find(l => l.id === id) || null;
+                            }
+                            
+                            return (
+                              <Badge 
+                                key={id} 
+                                variant="pending"
+                                className="px-3 py-1.5 text-sm"
                               >
-                                <span className="sr-only">Remove</span>
-                                <svg 
-                                  width="15" 
-                                  height="15" 
-                                  viewBox="0 0 15 15" 
-                                  fill="none" 
-                                  xmlns="http://www.w3.org/2000/svg" 
-                                  className="h-3.5 w-3.5"
-                                >
-                                  <path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-                                </svg>
-                              </button>
-                            </Badge>
-                          )
-                        })}
+                                {displayLesson?.name || id}
+                              </Badge>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
+                    
                     <FormMessage />
                   </FormItem>
                 )}
@@ -412,22 +706,21 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
               />
               
               {/* Start Date and Time */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="startDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Starts On</FormLabel>
+                    <FormItem>
+                      <FormLabel>Start Date</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="date" 
+                        <Input
+                          type="date"
                           value={formatDateForInput(field.value)}
                           onChange={(e) => {
-                            const newDate = parseDateFromInput(e.target.value)
+                            const newDate = parseDate(e.target.value)
                             field.onChange(newDate)
                           }}
-                          className="w-full justify-start text-left font-normal"
                         />
                       </FormControl>
                       <FormMessage />
@@ -435,15 +728,12 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                   )}
                 />
                 
-                <div className="flex items-end justify-center">
-                  <span className="text-sm font-medium mb-3">at</span>
-                </div>
-                
                 <FormField
                   control={form.control}
                   name="startTime"
                   render={({ field }) => (
                     <FormItem>
+                      <FormLabel>Start Time</FormLabel>
                       <FormControl>
                         <Select 
                           value={field.value} 
@@ -468,22 +758,21 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
               </div>
               
               {/* End Date and Time */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="endDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Ends On</FormLabel>
+                    <FormItem>
+                      <FormLabel>End Date</FormLabel>
                       <FormControl>
-                        <Input 
+                        <Input
                           type="date"
                           value={formatDateForInput(field.value)}
                           onChange={(e) => {
-                            const newDate = parseDateFromInput(e.target.value)
+                            const newDate = parseDate(e.target.value)
                             field.onChange(newDate)
                           }}
-                          className="w-full justify-start text-left font-normal"
                         />
                       </FormControl>
                       <FormMessage />
@@ -491,15 +780,12 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                   )}
                 />
                 
-                <div className="flex items-end justify-center">
-                  <span className="text-sm font-medium mb-3">at</span>
-                </div>
-                
                 <FormField
                   control={form.control}
                   name="endTime"
                   render={({ field }) => (
                     <FormItem>
+                      <FormLabel>End Time</FormLabel>
                       <FormControl>
                         <Select 
                           value={field.value} 
@@ -547,62 +833,55 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                 )}
               />
               
-              {/* Training Venue */}
-              {deliveryMethod === "OFFLINE" && (
-                <FormField
-                  control={form.control}
-                  name="trainingVenueId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Training Venue</FormLabel>
-                      <FormControl>
-                        <Select 
-                          value={field.value} 
-                          onValueChange={field.onChange}
-                          disabled={isLoadingVenues}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select training venue" />
-                          </SelectTrigger>
-                          <SelectContent className="z-[9999]">
-                            {isLoadingVenues ? (
-                              <SelectItem value="loading" disabled>
-                                Loading venues...
+              {/* Training Venue (for offline delivery) */}
+              <FormField
+                control={form.control}
+                name="trainingVenueId"
+                render={({ field }) => (
+                  <FormItem className={cn(
+                    deliveryMethod !== "OFFLINE" && "hidden"
+                  )}>
+                    <FormLabel>Training Venue</FormLabel>
+                    <FormControl>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a venue" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {isLoadingVenues ? (
+                            <div className="py-2 px-3 text-sm text-gray-500">Loading venues...</div>
+                          ) : venuesData?.venues && venuesData.venues.length > 0 ? (
+                            venuesData.venues.map((venue) => (
+                              <SelectItem key={venue.id} value={venue.id}>
+                                {venue.name} - {venue.location}
                               </SelectItem>
-                            ) : venuesData?.venues?.length ? (
-                              venuesData.venues.map((venue) => (
-                                <SelectItem key={venue.id} value={venue.id}>
-                                  {venue.name} - {venue.location}, {venue.city.name}
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="none" disabled>
-                                No venues available
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+                            ))
+                          ) : (
+                            <div className="py-2 px-3 text-sm text-gray-500">No venues available</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              {/* Training Link (Rendered unconditionally, hidden via CSS) */}
+              {/* Training Link (for online/self-paced delivery) */}
               <FormField
                 control={form.control}
                 name="trainingLink"
                 render={({ field }) => (
                   <FormItem className={cn(
-                    // Add any necessary spacing classes here, e.g., "space-y-1"
                     (deliveryMethod !== "ONLINE" && deliveryMethod !== "SELF_PACED") && "hidden"
                   )}>
                     <FormLabel>Training Link</FormLabel>
                     <FormControl>
                       <Input 
                         {...field} 
-                        // Ensure the value is not null/undefined for the input
                         value={field.value || ''} 
                         placeholder="Enter meeting link (Zoom, Teams, etc.)" 
                       />
@@ -612,152 +891,75 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                 )}
               />
               
-              {/* Venue Requirements (for offline delivery) */}
-              {deliveryMethod === "OFFLINE" && (
-                <>
+              {/* Venue Requirements */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2">
                   <FormField
                     control={form.control}
                     name="meetsRequirement"
                     render={({ field }) => (
-                      <FormItem className="space-y-3">
-                        <FormLabel>
-                          The Training Venue meets the technological and tools requirement?
-                        </FormLabel>
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                         <FormControl>
-                          <RadioGroup
-                            onValueChange={(value) => field.onChange(value === "true")}
-                            defaultValue={field.value ? "true" : "false"}
-                            className="flex items-center space-x-6 pt-2"
-                          >
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="true" id="req-yes" />
-                              <Label htmlFor="req-yes">Yes</Label>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <RadioGroupItem value="false" id="req-no" />
-                              <Label htmlFor="req-no">No</Label>
-                            </div>
-                          </RadioGroup>
+                          <Checkbox
+                            checked={Boolean(field.value)}
+                            onCheckedChange={(checked) => {
+                              field.onChange(checked === true)
+                            }}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>
+                            Meets venue requirements
+                          </FormLabel>
+                          <p className="text-xs text-muted-foreground">
+                            Check if the venue meets all training requirements
+                          </p>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {!meetsRequirement && (
+                  <FormField
+                    control={form.control}
+                    name="requirementRemark"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Requirement Remarks</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            {...field} 
+                            value={field.value || ''} 
+                            placeholder="Describe what requirements are not met..."
+                            className="min-h-[80px]"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                  
-                  {/* Requirement Remark (if venue doesn't meet requirements) */}
-                  {!meetsRequirement && (
-                    <FormField
-                      control={form.control}
-                      name="requirementRemark"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>If No, Please add remark</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              {...field} 
-                              placeholder="Enter requirement remark" 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  )}
-                </>
-              )}
-              
-              {/* Trainer Compensation */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="trainerCompensationType"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Trainer compensation type</FormLabel>
-                      <FormControl>
-                        <Select 
-                          value={field.value} 
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select compensation type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PER_HOUR">Per Hour</SelectItem>
-                            <SelectItem value="PER_TRAINEES">Per Trainee</SelectItem>
-
-                          </SelectContent>
-                        </Select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="trainerCompensationAmount"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Amount</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min={0}
-                          {...field} 
-                          onChange={e => {
-                            const value = e.target.value === "" ? 0 : Number(e.target.value);
-                            field.onChange(isNaN(value) ? 0 : value);
-                          }}
-                          placeholder="Enter amount" 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                )}
               </div>
               
-              {/* Number of Assistant Trainers */}
-              <FormField
-                control={form.control}
-                name="numberOfAssistantTrainer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Number of Assistant Trainer</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min={0}
-                        {...field} 
-                        onChange={e => {
-                          const value = e.target.value === "" ? 0 : Number(e.target.value);
-                          field.onChange(isNaN(value) ? 0 : value);
-                        }}
-                        placeholder="Enter number of assistant trainers" 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {/* Assistant Trainer Compensation (if there are assistant trainers) */}
-              {numberOfAssistantTrainer > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Trainer Compensation */}
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Trainer Compensation</Label>
+                
+                <div className="grid grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="assistantTrainerCompensationType"
+                    name="trainerCompensationType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Assistant Trainer compensation (Optional)</FormLabel>
+                        <FormLabel>Compensation Type</FormLabel>
                         <FormControl>
                           <Select 
                             value={field.value} 
                             onValueChange={field.onChange}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select compensation type" />
+                              <SelectValue placeholder="Select type" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="PER_HOUR">Per Hour</SelectItem>
@@ -772,7 +974,7 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                   
                   <FormField
                     control={form.control}
-                    name="assistantTrainerCompensationAmount"
+                    name="trainerCompensationAmount"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Amount</FormLabel>
@@ -793,14 +995,96 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
                     )}
                   />
                 </div>
-              )}
+              </div>
+              
+              {/* Assistant Trainer */}
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="numberOfAssistantTrainer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Assistant Trainers</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min={0}
+                          {...field} 
+                          onChange={e => {
+                            const value = e.target.value === "" ? 0 : Number(e.target.value);
+                            field.onChange(isNaN(value) ? 0 : value);
+                          }}
+                          placeholder="Enter number of assistant trainers" 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {numberOfAssistantTrainer > 0 && (
+                  <div className="space-y-4">
+                    <Label className="text-base font-medium">Assistant Trainer Compensation</Label>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="assistantTrainerCompensationType"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Compensation Type</FormLabel>
+                            <FormControl>
+                              <Select 
+                                value={field.value || "PER_HOUR"} 
+                                onValueChange={field.onChange}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PER_HOUR">Per Hour</SelectItem>
+                                  <SelectItem value="PER_TRAINEES">Per Trainee</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="assistantTrainerCompensationAmount"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Amount</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                min={0}
+                                {...field} 
+                                onChange={e => {
+                                  const value = e.target.value === "" ? 0 : Number(e.target.value);
+                                  field.onChange(isNaN(value) ? 0 : value);
+                                }}
+                                placeholder="Enter amount" 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </form>
           </Form>
         </div>
       </ScrollArea>
       
       {/* Fixed footer with buttons */}
-      <div className="absolute bottom-0 left-0 right-0 py-4 px-6 bg-white border-t flex justify-end gap-4">
+      <div className="absolute bottom-0 left-0 right-0 py-4 px-6 bg-white border-t rounded-b-lg flex justify-end gap-4">
         <Button
           type="button"
           variant="outline"
@@ -810,10 +1094,17 @@ export function SessionForm({ trainingId, companyId, onSuccess, onCancel }: Sess
         </Button>
         <Button
           onClick={form.handleSubmit(onSubmit)}
-          disabled={isAddingSession}
+          disabled={isLoading}
           className="bg-brand text-white"
         >
-          {isAddingSession ? "Creating Session..." : "Create Session"}
+          {isLoading 
+            ? "Processing..." 
+            : isEditing 
+              ? "Update Session" 
+              : cohortId 
+                ? "Add to Cohort" 
+                : "Create Session"
+          }
         </Button>
       </div>
     </div>

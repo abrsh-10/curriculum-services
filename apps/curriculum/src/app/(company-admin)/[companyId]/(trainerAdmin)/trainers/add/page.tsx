@@ -30,7 +30,7 @@ const trainerFormSchema = z.object({
   countryId: z.string().optional(),
   regionId: z.string().optional(),
   zoneId: z.string().min(1, "Zone is required"),
-  cityId: z.string().min(1, "City is required"),
+  cityId: z.string().optional(),
   woreda: z.string().optional(),
   houseNumber: z.string().optional(),
   location: z.string().optional(),
@@ -57,7 +57,7 @@ export default function AddTrainerPage() {
     languages,
     academicLevels,
     trainingTags,
-    addTrainer,
+    addTrainerAsync,
     isLoading
   } = useAddTrainer()
 
@@ -101,7 +101,7 @@ export default function AddTrainerPage() {
     if (step === 1) {
       fieldsToValidate = ["firstName", "lastName", "email", "phoneNumber", "dateOfBirth"];
     } else if (step === 2) {
-      fieldsToValidate = ["academicLevelId", "experienceYears", "zoneId", "cityId", "languageId"];
+      fieldsToValidate = ["academicLevelId", "experienceYears", "zoneId", "languageId"];
     }
 
     if (fieldsToValidate.length > 0) {
@@ -127,7 +127,7 @@ export default function AddTrainerPage() {
   }
 
   const onSubmit = async (values: TrainerFormValues) => {
-    console.log("Submitting Trainer form:", values);
+    // console.log("Submitting Trainer form:", values);
 
     // Fill in default values for optional fields to satisfy API requirements
     const formattedDateOfBirth = values.dateOfBirth instanceof Date
@@ -145,7 +145,7 @@ export default function AddTrainerPage() {
       gender: values.gender || "OTHER", // Default value
       languageId: values.languageId || "1", // Default value - may need adjustment
       zoneId: values.zoneId,
-      cityId: values.cityId,
+      cityId: values.cityId || "", // Optional field - can be empty
       woreda: values.woreda || "",
       houseNumber: values.houseNumber || "",
       location: values.location || "Ethiopia", // Default value
@@ -157,11 +157,12 @@ export default function AddTrainerPage() {
     };
 
     try {
-      await addTrainer(trainerData);
-      router.back(); // Redirect on success to trainer list page
+      await addTrainerAsync(trainerData);
+      // Only close modal on successful submission
+      router.back();
     } catch (error) {
       console.error("Trainer submission failed:", error);
-      // Error handled by the hook's onError usually
+      // Modal stays open on error - error message will be shown via toast from the hook
     }
   }
 

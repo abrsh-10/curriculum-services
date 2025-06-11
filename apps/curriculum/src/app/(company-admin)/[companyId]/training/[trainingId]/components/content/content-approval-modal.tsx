@@ -15,7 +15,7 @@ import { useAcceptContent, useRejectContent } from "@/lib/hooks/useContent"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, AlertCircle, ExternalLink, CheckCircle, XCircle, BookOpen, FolderOpen, ClipboardCheck } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
+
 
 interface ContentApprovalModalProps {
   content: Content

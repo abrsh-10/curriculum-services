@@ -63,12 +63,20 @@ export interface Trainer {
 export interface Session {
   id: string
   name: string
+  cohort?: {
+    id: string
+    name: string
+    description: string
+    tags: string[]
+    trainingTitle: string
+    parentCohortName: string | null
+  }
   lessons: Lesson[]
   deliveryMethod: DeliveryMethod
   startDate: string
   endDate: string
   numberOfStudents: number
-  trainingVenue: TrainingVenue
+  trainingVenue: TrainingVenue | null
   meetsRequirement: boolean
   requirementRemark: string
   trainerCompensationType: CompensationType
@@ -80,6 +88,8 @@ export interface Session {
   incompletionReason: string | null
   fileUrls: string[]
   trainingLink: string | null
+  first: boolean
+  last: boolean
 }
 
 export interface CreateSessionData {
@@ -98,6 +108,8 @@ export interface CreateSessionData {
   assistantTrainerCompensationType: CompensationType
   assistantTrainerCompensationAmount: number
   trainingLink?: string
+  isFirst: boolean
+  isLast: boolean
 }
 
 interface SessionsResponse {
@@ -125,7 +137,19 @@ interface SessionResponse {
 }
 
 interface SessionQueryParams {
-  trainingIds: string[]
+  trainingIds?: string[]
+  cohortIds?: string[]
+  deliveryMethod?: DeliveryMethod
+  trainerCompensationType?: CompensationType
+  status?: SessionStatus
+  startDate?: string
+  endDate?: string
+  page?: number
+  pageSize?: number
+}
+
+interface CohortSessionQueryParams {
+  cohortId: string
   deliveryMethod?: DeliveryMethod
   trainerCompensationType?: CompensationType
   status?: SessionStatus
@@ -139,6 +163,11 @@ interface SessionTrainersResponse {
   code: string
   trainers: Trainer[]
   message: string
+}
+
+interface CreateCohortSessionData extends Omit<CreateSessionData, 'trainingVenueId'> {
+  cohortId: string
+  trainingVenueId?: string
 }
 
 export function useSession(sessionId: string) {
@@ -198,10 +227,13 @@ export function useSessions(params: SessionQueryParams) {
         // Add query parameters
         const queryParams = new URLSearchParams()
         
-        // --- Add trainingIds (Required) --- 
-        // Revert: Assume trainingIds is always provided and required by API
-        params.trainingIds.forEach(id => {
+        // --- Add trainingIds and cohortIds --- 
+        params.trainingIds?.forEach(id => {
           queryParams.append('trainingIds', id)
+        })
+        
+        params.cohortIds?.forEach(id => {
+          queryParams.append('cohortIds', id)
         })
         
         // Add other optional parameters if provided
@@ -234,8 +266,8 @@ export function useSessions(params: SessionQueryParams) {
         throw new Error(errorMessage);
       }
     },
-    // Revert enabled logic: Only run if trainingIds are provided
-    enabled: params.trainingIds && params.trainingIds.length > 0, 
+    // Updated enabled logic: Run if either trainingIds or cohortIds are provided
+    enabled: (params.trainingIds && params.trainingIds.length > 0) || (params.cohortIds && params.cohortIds.length > 0), 
     retry: 1,
     staleTime: 1000 * 60 * 2, // Cache sessions for 2 minutes
     refetchOnWindowFocus: false,
@@ -266,7 +298,6 @@ export function useAddSession() {
       return { responseData: response.data, trainingId }
     },
     onSuccess: ({ trainingId }) => {
-      toast.success('Session added successfully')
       queryClient.invalidateQueries({ queryKey: ['sessions', { trainingIds: [trainingId] }] })
     },
     onError: (error: any) => {
@@ -280,91 +311,115 @@ export function useAddSession() {
   }
 }
 
-// Add trainees to a session
-export function useAddTraineesToSession() {
+// New hook for adding sessions to cohorts
+export function useAddCohortSession() {
   const queryClient = useQueryClient()
-  
-  const addTraineeseMutation = useMutation({
+
+  const addCohortSessionMutation = useMutation({
     mutationFn: async ({ 
-      sessionId, 
-      traineeIds,
-      trainingId 
+      cohortId, 
+      sessionData 
     }: { 
-      sessionId: string, 
-      traineeIds: string[],
-      trainingId?: string 
+      cohortId: string, 
+      sessionData: CreateCohortSessionData 
     }) => {
       const token = getCookie('token')
-      const response = await axios.patch(
-        `${process.env.NEXT_PUBLIC_API}/session/${sessionId}/add-trainees`,
-        { traineeIds },
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/session`,
+        sessionData,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
       )
-      return { responseData: response.data, sessionId, trainingId }
+      return { responseData: response.data, cohortId }
     },
-    onSuccess: ({ sessionId, trainingId }) => {
-      toast.success('Students added to session successfully')
-      
-      // Invalidate session-specific student queries
-      queryClient.invalidateQueries({ 
-        predicate: (query) => {
-          const queryKey = query.queryKey;
-          return (
-            // Match any query key that contains the sessionId
-            Array.isArray(queryKey) && 
-            queryKey.includes(sessionId)
-          );
-        }
-      });
-      
-      // Also invalidate training-level student queries if trainingId is provided
-      if (trainingId) {
-        queryClient.invalidateQueries({
-          queryKey: ['students', trainingId]
-        });
-      }
+    onSuccess: ({ cohortId }) => {
+      queryClient.invalidateQueries({ queryKey: ['cohortSessions', { cohortId }] })
+      queryClient.invalidateQueries({ queryKey: ['sessions', { cohortIds: [cohortId] }] })
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to add students to session')
+      toast.error(error.response?.data?.message || 'Failed to add session')
     }
   })
 
   return {
-    addTrainees: addTraineeseMutation.mutate,
-    isLoading: addTraineeseMutation.isPending
+    addCohortSession: addCohortSessionMutation.mutate,
+    isLoading: addCohortSessionMutation.isPending
   }
 }
 
+// Update session
+export function useUpdateSession() {
+  const queryClient = useQueryClient()
 
-// fetch students for session 
-export function useAssignedStudentsForSession(
-  sessionId: string, 
-  page?: number, 
-  pageSize?: number,
-) {
-  return useQuery({
-    queryKey: ['students', page, pageSize, sessionId],
+  const updateSessionMutation = useMutation({
+    mutationFn: async ({ 
+      sessionId, 
+      sessionData 
+    }: { 
+      sessionId: string, 
+      sessionData: Partial<CreateSessionData> | Partial<CreateCohortSessionData>
+    }) => {
+      const token = getCookie('token')
+      const response = await axios.patch(
+        `${process.env.NEXT_PUBLIC_API}/session/${sessionId}`,
+        sessionData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return { responseData: response.data, sessionId }
+    },
+    onSuccess: ({ sessionId }) => {
+      queryClient.invalidateQueries({ queryKey: ['session', sessionId] })
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['cohortSessions'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to update session')
+    }
+  })
+
+  return {
+    updateSession: updateSessionMutation.mutate,
+    isLoading: updateSessionMutation.isPending
+  }
+}
+
+// New hook specifically for cohort sessions
+export function useCohortSessions(params: CohortSessionQueryParams) {
+  return useQuery<SessionsResponse, Error>({
+    queryKey: ['cohortSessions', params],
     queryFn: async () => {
       try {
         const token = getCookie('token')
         
-        // Build URL with query parameters
-        let url = `${process.env.NEXT_PUBLIC_API}/session/${sessionId}/trainees`
+        // Use the new endpoint format: /api/session/{cohortId}
+        const url = `${process.env.NEXT_PUBLIC_API}/session/cohort/${params.cohortId}`
         
-        // Add pagination parameters if provided
-        const params = new URLSearchParams()
-        if (page !== undefined) params.append('page', page.toString())
-        if (pageSize !== undefined) params.append('page-size', pageSize.toString())
+        // Add query parameters
+        const queryParams = new URLSearchParams()
         
-        // Append query parameters if any exist
-        if (params.toString()) {
-          url += `?${params.toString()}`
+        // Add other optional parameters if provided
+        if (params.deliveryMethod) queryParams.append('deliveryMethod', params.deliveryMethod)
+        if (params.trainerCompensationType) queryParams.append('trainerCompensationType', params.trainerCompensationType)
+        if (params.status) queryParams.append('status', params.status)
+        if (params.startDate) queryParams.append('startDate', params.startDate)
+        if (params.endDate) queryParams.append('endDate', params.endDate)
+        
+        // Make sure page is at least 1 (backend uses 1-based indexing)
+        if (params.page !== undefined) {
+          const pageNumber = Math.max(1, params.page)
+          queryParams.append('page', pageNumber.toString())
         }
         
-        const response = await axios.get<StudentsResponse>(
-          url,
+        if (params.pageSize !== undefined) queryParams.append('pageSize', params.pageSize.toString())
+        
+        // Append query parameters if any exist
+        const finalUrl = queryParams.toString() ? `${url}?${queryParams.toString()}` : url
+        
+        const response = await axios.get<SessionsResponse>(
+          finalUrl,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
@@ -372,10 +427,15 @@ export function useAssignedStudentsForSession(
         
         return response.data
       } catch (error: any) {
-        throw new Error(error?.response?.data?.message || 'Failed to load students')
+        const errorMessage = error?.response?.data?.message || error?.message || 'Failed to load cohort sessions';
+        console.log("Error fetching cohort sessions:", error);
+        throw new Error(errorMessage);
       }
     },
-    enabled: !!sessionId
+    enabled: !!params.cohortId, 
+    retry: 1,
+    staleTime: 1000 * 60 * 2, // Cache sessions for 2 minutes
+    refetchOnWindowFocus: false,
   })
 }
 

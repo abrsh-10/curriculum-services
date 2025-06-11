@@ -15,26 +15,23 @@ interface CSVStudentData {
   contactPhone: string
   dateOfBirth: string
   gender?: string
-  countryId: string
-  regionId: string
-  zoneId: string
-  cityId: string
+  countryName: string
+  regionName: string
+  zoneName: string
+  cityName: string
   woreda: string
   houseNumber: string
-  languageId: string
-  academicLevelId: string
+  languageName: string
+  academicLevelName: string
   fieldOfStudy: string
   hasSmartphone: string
-  smartphoneOwner: string
   hasTrainingExperience: string
   trainingExperienceDescription: string
   emergencyContactName: string
   emergencyContactPhone: string
   emergencyContactRelationship: string
-  hasDisability?: string
-  belongsToMarginalizedGroup?: string
-  disabilityIds: string
-  marginalizedGroupIds: string
+  disabilityNames: string
+  marginalizedGroupNames: string
   rowIndex: number
   errors?: Record<string, string>
 }
@@ -137,15 +134,15 @@ export function CSVDataTable({
           }
           
           // Handle cascading updates for location fields
-          if (editingCell.field === 'countryId') {
-            updatedRow.regionId = ""
-            updatedRow.zoneId = ""
-            updatedRow.cityId = ""
-          } else if (editingCell.field === 'regionId') {
-            updatedRow.zoneId = ""
-            updatedRow.cityId = ""
-          } else if (editingCell.field === 'zoneId') {
-            updatedRow.cityId = ""
+          if (editingCell.field === 'countryName') {
+            updatedRow.regionName = ""
+            updatedRow.zoneName = ""
+            updatedRow.cityName = ""
+          } else if (editingCell.field === 'regionName') {
+            updatedRow.zoneName = ""
+            updatedRow.cityName = ""
+          } else if (editingCell.field === 'zoneName') {
+            updatedRow.cityName = ""
           }
           
           return updatedRow
@@ -165,12 +162,12 @@ export function CSVDataTable({
 
   const getFilteredOptions = (field: string, row: CSVStudentData) => {
     switch (field) {
-      case 'regionId':
-        return regions.filter(r => r.country.id === row.countryId)
-      case 'zoneId':
-        return zones.filter(z => z.region.id === row.regionId)
-      case 'cityId':
-        return cities.filter(c => c.zone?.id === row.zoneId)
+      case 'regionName':
+        return regions.filter(r => r.country.name === row.countryName)
+      case 'zoneName':
+        return zones.filter(z => z.region.name === row.regionName)
+      case 'cityName':
+        return cities.filter(c => c.zone?.name === row.zoneName)
       default:
         return []
     }
@@ -178,40 +175,40 @@ export function CSVDataTable({
 
   const getDisplayValue = (field: string, value: string, row: CSVStudentData) => {
     switch (field) {
-      case 'languageId':
-        const language = languages.find(l => l.id === value)
+      case 'languageName':
+        const language = languages.find(l => l.name === value)
         return language ? language.name : "Not found"
-      case 'academicLevelId':
-        const academicLevel = academicLevels.find(a => a.id === value)
+      case 'academicLevelName':
+        const academicLevel = academicLevels.find(a => a.name === value)
         return academicLevel ? academicLevel.name : "Not found"
-      case 'countryId':
-        const country = countries.find(c => c.id === value)
+      case 'countryName':
+        const country = countries.find(c => c.name === value)
         return country ? country.name : "Not found"
-      case 'regionId':
-        const filteredRegions = getFilteredOptions('regionId', row)
-        const region = filteredRegions.find(r => r.id === value)
+      case 'regionName':
+        const filteredRegions = getFilteredOptions('regionName', row)
+        const region = filteredRegions.find(r => r.name === value)
         return region ? region.name : "Not found"
-      case 'zoneId':
-        const filteredZones = getFilteredOptions('zoneId', row)
-        const zone = filteredZones.find(z => z.id === value)
+      case 'zoneName':
+        const filteredZones = getFilteredOptions('zoneName', row)
+        const zone = filteredZones.find(z => z.name === value)
         return zone ? zone.name : "Not found"
-      case 'cityId':
-        const filteredCities = getFilteredOptions('cityId', row)
-        const city = filteredCities.find(c => c.id === value)
+      case 'cityName':
+        const filteredCities = getFilteredOptions('cityName', row)
+        const city = filteredCities.find(c => c.name === value)
         return city ? city.name : "Not found"
-      case 'disabilityIds':
+      case 'disabilityNames':
         if (!value) return "Not found"
         const disabilityIdArray = value.split(',').map(id => id.trim()).filter(Boolean)
         const disabilityNames = disabilityIdArray.map(id => {
-          const disability = disabilities.find(d => d.id === id)
+          const disability = disabilities.find(d => d.name === id)
           return disability ? disability.name : id
         })
         return disabilityNames.join(', ') || "Not found"
-      case 'marginalizedGroupIds':
+      case 'marginalizedGroupNames':
         if (!value) return "Not found"
         const groupIdArray = value.split(',').map(id => id.trim()).filter(Boolean)
         const groupNames = groupIdArray.map(id => {
-          const group = marginalizedGroups.find(g => g.id === id)
+          const group = marginalizedGroups.find(g => g.name === id)
           return group ? group.name : id
         })
         return groupNames.join(', ') || "Not found"
@@ -232,35 +229,35 @@ export function CSVDataTable({
     let emptyMessage = ""
     
     switch (field) {
-      case 'languageId':
+      case 'languageName':
         options = languages
         placeholder = "Select language"
         emptyMessage = "No languages available"
         break
-      case 'academicLevelId':
+      case 'academicLevelName':
         options = academicLevels
         placeholder = "Select academic level"
         emptyMessage = "No academic levels available"
         break
-      case 'countryId':
+      case 'countryName':
         options = countries
         placeholder = "Select country"
         emptyMessage = "No countries available"
         break
-      case 'regionId':
-        options = getFilteredOptions('regionId', row)
-        placeholder = row.countryId ? "Select region" : "Select country first"
-        emptyMessage = row.countryId ? "No regions available for selected country" : "Select country first"
+      case 'regionName':
+        options = getFilteredOptions('regionName', row)
+        placeholder = row.countryName ? "Select region" : "Select country first"
+        emptyMessage = row.countryName ? "No regions available for selected country" : "Select country first"
         break
-      case 'zoneId':
-        options = getFilteredOptions('zoneId', row)
-        placeholder = row.regionId ? "Select zone" : "Select region first"
-        emptyMessage = row.regionId ? "No zones available for selected region" : "Select region first"
+      case 'zoneName':
+        options = getFilteredOptions('zoneName', row)
+        placeholder = row.regionName ? "Select zone" : "Select region first"
+        emptyMessage = row.regionName ? "No zones available for selected region" : "Select region first"
         break
-      case 'cityId':
-        options = getFilteredOptions('cityId', row)
-        placeholder = row.zoneId ? "Select city" : "Select zone first"
-        emptyMessage = row.zoneId ? "No cities available for selected zone" : "Select zone first"
+      case 'cityName':
+        options = getFilteredOptions('cityName', row)
+        placeholder = row.zoneName ? "Select city" : "Select zone first"
+        emptyMessage = row.zoneName ? "No cities available for selected zone" : "Select zone first"
         break
       case 'gender':
         options = [
@@ -283,19 +280,21 @@ export function CSVDataTable({
         ]
         placeholder = "Has training experience?"
         break
-      case 'disabilityIds':
+
+      case 'disabilityNames':
         options = disabilities
         placeholder = "Select disabilities"
         emptyMessage = "No disabilities available"
         isMultiple = true
         break
-      case 'marginalizedGroupIds':
+      case 'marginalizedGroupNames':
         options = marginalizedGroups
         placeholder = "Select marginalized groups"
         emptyMessage = "No marginalized groups available"
         isMultiple = true
         break
       default:
+        // For text fields (including emergency contact fields)
         return (
           <Input
             value={editValue}
@@ -309,15 +308,15 @@ export function CSVDataTable({
 
     if (isMultiple) {
       // For multi-select fields, show a simplified interface
-      const currentIds = editValue ? editValue.split(',').map(id => id.trim()).filter(Boolean) : []
+      const currentNames = editValue ? editValue.split(',').map(name => name.trim()).filter(Boolean) : []
       
       return (
         <div className="space-y-2">
           <Select 
             value="" 
-            onValueChange={(selectedId) => {
-              if (!currentIds.includes(selectedId)) {
-                const newValue = currentIds.length > 0 ? `${editValue},${selectedId}` : selectedId
+            onValueChange={(selectedName) => {
+              if (!currentNames.includes(selectedName)) {
+                const newValue = currentNames.length > 0 ? `${editValue},${selectedName}` : selectedName
                 setEditValue(newValue)
               }
             }}
@@ -328,7 +327,7 @@ export function CSVDataTable({
             <SelectContent>
               {options.length > 0 ? (
                 options.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
+                  <SelectItem key={option.id} value={option.name}>
                     {option.name}
                   </SelectItem>
                 ))
@@ -337,17 +336,17 @@ export function CSVDataTable({
               )}
             </SelectContent>
           </Select>
-          {currentIds.length > 0 && (
+          {currentNames.length > 0 && (
             <div className="flex flex-wrap gap-1">
-              {currentIds.map((id, index) => {
-                const option = options.find(o => o.id === id)
+              {currentNames.map((name, index) => {
+                const option = options.find(o => o.name === name)
                 return (
                   <span key={index} className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                    {option?.name || id}
+                    {option?.name || name}
                     <button
                       onClick={() => {
-                        const newIds = currentIds.filter(cId => cId !== id)
-                        setEditValue(newIds.join(','))
+                        const newNames = currentNames.filter(cName => cName !== name)
+                        setEditValue(newNames.join(','))
                       }}
                       className="text-blue-600 hover:text-blue-800"
                     >
@@ -370,7 +369,10 @@ export function CSVDataTable({
         <SelectContent>
           {options.length > 0 ? (
             options.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
+              <SelectItem 
+                key={option.id} 
+                value={['gender', 'hasSmartphone', 'hasTrainingExperience'].includes(field) ? option.id : option.name}
+              >
                 {option.name}
               </SelectItem>
             ))
@@ -386,7 +388,7 @@ export function CSVDataTable({
     const isEditing = editingCell?.row === row.rowIndex && editingCell?.field === field
     const hasError = row.errors?.[field]
     const displayValue = getDisplayValue(field, value, row)
-    const isSelectField = ['languageId', 'academicLevelId', 'zoneId', 'cityId', 'countryId', 'regionId', 'gender', 'hasSmartphone', 'hasTrainingExperience', 'disabilityIds', 'marginalizedGroupIds'].includes(field)
+    const isSelectField = ['languageName', 'academicLevelName', 'zoneName', 'cityName', 'countryName', 'regionName', 'gender', 'hasSmartphone', 'hasTrainingExperience', 'disabilityNames', 'marginalizedGroupNames'].includes(field)
 
     if (isEditing) {
       return (
@@ -443,23 +445,27 @@ export function CSVDataTable({
             <tr>
               <th className="p-3 text-left font-medium text-gray-700">Row</th>
               <th className="p-3 text-left font-medium text-gray-700">First Name</th>
+              <th className="p-3 text-left font-medium text-gray-700">Middle Name</th>
               <th className="p-3 text-left font-medium text-gray-700">Last Name</th>
               <th className="p-3 text-left font-medium text-gray-700">Email</th>
               <th className="p-3 text-left font-medium text-gray-700">Phone</th>
               <th className="p-3 text-left font-medium text-gray-700">Date of Birth</th>
-              <th className="p-3 text-left font-medium text-gray-700">Field of Study</th>
-              <th className="p-3 text-left font-medium text-gray-700">Has Smartphone</th>
-              <th className="p-3 text-left font-medium text-gray-700">Training Experience</th>
-              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact</th>
-              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact Phone</th>
-              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact Relationship</th>
               <th className="p-3 text-left font-medium text-gray-700">Gender</th>
               <th className="p-3 text-left font-medium text-gray-700">Country</th>
               <th className="p-3 text-left font-medium text-gray-700">Region</th>
               <th className="p-3 text-left font-medium text-gray-700">Zone</th>
               <th className="p-3 text-left font-medium text-gray-700">City</th>
+              <th className="p-3 text-left font-medium text-gray-700">Woreda</th>
+              <th className="p-3 text-left font-medium text-gray-700">House Number</th>
               <th className="p-3 text-left font-medium text-gray-700">Language</th>
               <th className="p-3 text-left font-medium text-gray-700">Academic Level</th>
+              <th className="p-3 text-left font-medium text-gray-700">Field of Study</th>
+              <th className="p-3 text-left font-medium text-gray-700">Has Smartphone</th>
+              <th className="p-3 text-left font-medium text-gray-700">Training Experience</th>
+              <th className="p-3 text-left font-medium text-gray-700">Training Experience Description</th>
+              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact</th>
+              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact Phone</th>
+              <th className="p-3 text-left font-medium text-gray-700">Emergency Contact Relationship</th>
               <th className="p-3 text-left font-medium text-gray-700">Disabilities</th>
               <th className="p-3 text-left font-medium text-gray-700">Marginalized Groups</th>
               <th className="p-3 text-left font-medium text-gray-700">Status</th>
@@ -470,25 +476,29 @@ export function CSVDataTable({
               <tr key={row.rowIndex} className="border-t hover:bg-gray-50/50 transition-colors">
                 <td className="p-3 font-medium text-gray-600">{row.rowIndex}</td>
                 <td className="p-3">{renderCell(row, 'firstName', row.firstName)}</td>
+                <td className="p-3">{renderCell(row, 'middleName', row.middleName)}</td>
                 <td className="p-3">{renderCell(row, 'lastName', row.lastName)}</td>
                 <td className="p-3">{renderCell(row, 'email', row.email)}</td>
                 <td className="p-3">{renderCell(row, 'contactPhone', row.contactPhone)}</td>
                 <td className="p-3">{renderCell(row, 'dateOfBirth', row.dateOfBirth)}</td>
                 <td className="p-3">{renderCell(row, 'gender', row.gender || "")}</td>
+                <td className="p-3">{renderCell(row, 'countryName', row.countryName)}</td>
+                <td className="p-3">{renderCell(row, 'regionName', row.regionName)}</td>
+                <td className="p-3">{renderCell(row, 'zoneName', row.zoneName)}</td>
+                <td className="p-3">{renderCell(row, 'cityName', row.cityName)}</td>
+                <td className="p-3">{renderCell(row, 'woreda', row.woreda)}</td>
+                <td className="p-3">{renderCell(row, 'houseNumber', row.houseNumber)}</td>
+                <td className="p-3">{renderCell(row, 'languageName', row.languageName)}</td>
+                <td className="p-3">{renderCell(row, 'academicLevelName', row.academicLevelName)}</td>
                 <td className="p-3">{renderCell(row, 'fieldOfStudy', row.fieldOfStudy)}</td>
                 <td className="p-3">{renderCell(row, 'hasSmartphone', row.hasSmartphone)}</td>
                 <td className="p-3">{renderCell(row, 'hasTrainingExperience', row.hasTrainingExperience)}</td>
+                <td className="p-3">{renderCell(row, 'trainingExperienceDescription', row.trainingExperienceDescription)}</td>
                 <td className="p-3">{renderCell(row, 'emergencyContactName', row.emergencyContactName)}</td>
                 <td className="p-3">{renderCell(row, 'emergencyContactPhone', row.emergencyContactPhone)}</td>
                 <td className="p-3">{renderCell(row, 'emergencyContactRelationship', row.emergencyContactRelationship)}</td>
-                <td className="p-3">{renderCell(row, 'countryId', row.countryId)}</td>
-                <td className="p-3">{renderCell(row, 'regionId', row.regionId)}</td>
-                <td className="p-3">{renderCell(row, 'zoneId', row.zoneId)}</td>
-                <td className="p-3">{renderCell(row, 'cityId', row.cityId)}</td>
-                <td className="p-3">{renderCell(row, 'languageId', row.languageId)}</td>
-                <td className="p-3">{renderCell(row, 'academicLevelId', row.academicLevelId)}</td>
-                <td className="p-3">{renderCell(row, 'disabilityIds', row.disabilityIds)}</td>
-                <td className="p-3">{renderCell(row, 'marginalizedGroupIds', row.marginalizedGroupIds)}</td>
+                <td className="p-3">{renderCell(row, 'disabilityNames', row.disabilityNames)}</td>
+                <td className="p-3">{renderCell(row, 'marginalizedGroupNames', row.marginalizedGroupNames)}</td>
                 <td className="p-3">
                   {row.errors && Object.keys(row.errors).length > 0 ? (
                     <span className="text-red-600 text-xs font-medium">

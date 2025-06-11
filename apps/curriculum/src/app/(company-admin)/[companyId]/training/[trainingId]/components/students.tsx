@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { Button } from "@/components/ui/button"
 import { Loading } from "@/components/ui/loading"
-import { useStudents, useAddStudent, useStudentById, useUpdateStudent, useDeleteStudent, useBulkImportStudents, Student, CreateStudentData } from "@/lib/hooks/useStudents"
+import { useStudents, useAddStudent, useStudentById, useUpdateStudent, useDeleteStudent, useBulkImportStudentsByName, Student, CreateStudentData, CreateStudentByNameData } from "@/lib/hooks/useStudents"
 import { Plus, Upload, ArrowLeft } from "lucide-react"
 import Image from "next/image"
 import { Input } from "@/components/ui/input"
@@ -55,7 +55,7 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
   )
   const updateStudentMutation = useUpdateStudent()
   const deleteStudentMutation = useDeleteStudent()
-  const bulkImportMutation = useBulkImportStudents()
+  const bulkImportMutation = useBulkImportStudentsByName()
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentFormSchema),
@@ -354,17 +354,16 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
     }
   }, []);
 
-  const handleCSVImport = useCallback(async (students: StudentFormValues[]) => {
+  const handleCSVImport = useCallback(async (students: CreateStudentByNameData[]) => {
     try {
-      // Convert each student to the format expected by the API
-      const studentsData = students.map(studentFormData => convertToCreateStudentData(studentFormData))
-      await bulkImportMutation.mutateAsync({ trainingId, studentsData })
+      // Use the new bulk import by name endpoint
+      bulkImportMutation.bulkImportByName({ trainingId, studentsData: students })
       setShowImportView(false)
     } catch (error) {
       console.log("CSV import failed:", error)
       throw error // Re-throw to let CSVImportContent handle the error display
     }
-  }, [bulkImportMutation, trainingId, convertToCreateStudentData])
+  }, [bulkImportMutation, trainingId])
 
   const onSubmit = useCallback(async (values: StudentFormValues) => {
     const studentData = convertToCreateStudentData(values);
@@ -527,7 +526,7 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
             {/* CSV Import Content */}
             <CSVImportContent
               onImport={handleCSVImport}
-              isSubmitting={bulkImportMutation.isPending}
+              isSubmitting={bulkImportMutation.isLoading}
               languages={languages || []}
               countries={countries || []}
               regions={regions || []}

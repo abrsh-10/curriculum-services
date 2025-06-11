@@ -12,6 +12,7 @@ export interface TrainingAssessment {
   name: string
   description: string
   fileLink: string
+  trainingAssessmentType: 'PRE' | 'POST'
   answerFileLink?: string | null
   comment?: string | null
   sessionId: string | null
@@ -30,12 +31,14 @@ export interface CreateTrainingAssessmentData {
   name: string
   description: string
   fileLink: string
+  trainingAssessmentType: 'PRE' | 'POST'
 }
 
 export interface UpdateTrainingAssessmentData {
   name: string
   description: string
   fileLink: string
+  trainingAssessmentType: 'PRE' | 'POST'
 }
 
 export interface SubmitAssessmentAnswerData {
@@ -50,7 +53,7 @@ export interface AssignSessionData {
 
 interface TrainingAssessmentsResponse {
   code: string
-  trainingAssessments: TrainingAssessment[]
+  trainingAssessment: TrainingAssessment[]
   message: string
 }
 
@@ -63,65 +66,56 @@ interface TrainingAssessmentResponse {
 /**
  * Hook for fetching training assessments for a specific training
  */
-export function useTrainingAssessments(trainingId: string) {
+export function useTrainingAssessments(
+  trainingId: string, 
+  filters?: { type?: string, traineeId?: string },
+  options?: { enabled?: boolean }
+) {
+  const enabled = options?.enabled ?? true // Default to true if not specified
+
   return useQuery({
-    queryKey: ['training-assessments', trainingId],
+    queryKey: ['training-assessments', trainingId, filters],
     queryFn: async () => {
       try {
         const token = getCookie('token')
-        const response = await axios.get<TrainingAssessmentsResponse>(
-          `${process.env.NEXT_PUBLIC_API}/training-assessment/training/${trainingId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        )
+        const params = new URLSearchParams()
+        
+        if (filters?.type) {
+          params.append('type', filters.type)
+        }
+        
+        if (filters?.traineeId) {
+          params.append('traineeId', filters.traineeId)
+        }
+        
+        const queryString = params.toString()
+        const url = `${process.env.NEXT_PUBLIC_API}/training-assessment/training/${trainingId}${queryString ? `?${queryString}` : ''}`
+        
+        const response = await axios.get<TrainingAssessmentsResponse>(url, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
         return response.data
       } catch (error: any) {
         throw new Error(error?.response?.data?.message || 'Failed to load training assessments')
       }
     },
-    enabled: !!trainingId
-  })
-}
-
-/**
- * Hook for fetching training assessments for a specific session
- */
-export function useSessionAssessments(sessionId: string) {
-  return useQuery({
-    queryKey: ['session-assessments', sessionId],
-    queryFn: async () => {
-      try {
-        const token = getCookie('token')
-        const response = await axios.get<TrainingAssessmentsResponse>(
-          `${process.env.NEXT_PUBLIC_API}/training-assessment/session/${sessionId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        )
-        return response.data
-      } catch (error: any) {
-        throw new Error(error?.response?.data?.message || 'Failed to load session assessments')
-      }
-    },
-    enabled: !!sessionId
+    enabled: enabled && !!trainingId
   })
 }
 
 /**
  * Hook for fetching a single training assessment by ID
  */
-export function useTrainingAssessment(assessmentId: string, traineeId?: string) {
+export function useTrainingAssessment(assessmentId: string) {
   return useQuery({
-    queryKey: ['training-assessment', assessmentId, traineeId],
+    queryKey: ['training-assessment', assessmentId],
     queryFn: async () => {
       try {
         const token = getCookie('token')
         const response = await axios.get<TrainingAssessmentResponse>(
           `${process.env.NEXT_PUBLIC_API}/training-assessment/${assessmentId}`,
           {
-            headers: { Authorization: `Bearer ${token}` },
-            params: traineeId ? { traineeId } : undefined
+            headers: { Authorization: `Bearer ${token}` }
           }
         )
         return response.data
@@ -254,15 +248,29 @@ export function useSubmitAssessmentAnswer() {
           headers: { Authorization: `Bearer ${token}` }
         }
       )
-      return { responseData: response.data, assessmentId }
+      return { responseData: response.data, assessmentId, answerData }
     },
-    onSuccess: ({ assessmentId }) => {
+    onSuccess: ({ assessmentId, answerData }) => {
       toast.success('Assessment answer submitted successfully')
+      // Invalidate all related queries to refresh the data
       queryClient.invalidateQueries({ queryKey: ['assessment-answers', assessmentId] })
       queryClient.invalidateQueries({ queryKey: ['training-assessment', assessmentId] })
+      queryClient.invalidateQueries({ queryKey: ['training-assessments'] })
+      // Also invalidate any queries that might include this trainee's data
+      if (answerData.traineeId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ['training-assessments'],
+          predicate: (query) => {
+            const filters = query.queryKey[2] as any
+            return filters?.traineeId === answerData.traineeId
+          }
+        })
+      }
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Failed to submit assessment answer')
+      console.error('Assessment answer submission error:', error)
+      const errorMessage = error.response?.data?.message || 'Failed to submit assessment answer'
+      toast.error(errorMessage)
     }
   })
 }

@@ -12,6 +12,13 @@ import {
   DialogTitle,
   DialogFooter
 } from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
 import { TrainingAssessment } from "@/lib/hooks/useTrainingAssessment"
 
@@ -21,7 +28,7 @@ interface CatFormModalProps {
   isEditing: boolean
   assessment: TrainingAssessment | null
   isSubmitting: boolean
-  onSubmit: (data: { name: string; description: string; fileLink: string }) => Promise<void>
+  onSubmit: (data: { name: string; description: string; fileLink: string; trainingAssessmentType: 'PRE' | 'POST' }) => Promise<void>
 }
 
 export function AssessmentFormModal({
@@ -35,10 +42,12 @@ export function AssessmentFormModal({
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [fileLink, setFileLink] = useState("")
+  const [trainingAssessmentType, setTrainingAssessmentType] = useState<'PRE' | 'POST'>('PRE')
   const [errors, setErrors] = useState<{
     name?: string
     description?: string
     fileLink?: string
+    trainingAssessmentType?: string
   }>({})
 
   // Populate form when editing an existing assessment
@@ -47,11 +56,13 @@ export function AssessmentFormModal({
       setName(assessment.name || "")
       setDescription(assessment.description || "")
       setFileLink(assessment.fileLink || "")
+      setTrainingAssessmentType(assessment.trainingAssessmentType || 'PRE')
     } else {
       // Reset form for new assessment
       setName("")
       setDescription("")
       setFileLink("")
+      setTrainingAssessmentType('PRE')
     }
   }, [isEditing, assessment])
 
@@ -60,6 +71,7 @@ export function AssessmentFormModal({
       name?: string
       description?: string
       fileLink?: string
+      trainingAssessmentType?: string
     } = {}
 
     if (!name.trim()) {
@@ -74,6 +86,10 @@ export function AssessmentFormModal({
       newErrors.fileLink = "File link is required"
     } else if (!isValidUrl(fileLink)) {
       newErrors.fileLink = "Please enter a valid URL"
+    }
+
+    if (!trainingAssessmentType) {
+      newErrors.trainingAssessmentType = "Assessment type is required"
     }
 
     setErrors(newErrors)
@@ -98,7 +114,8 @@ export function AssessmentFormModal({
       await onSubmit({
         name,
         description,
-        fileLink
+        fileLink,
+        trainingAssessmentType
       })
     }
   }
@@ -143,6 +160,27 @@ export function AssessmentFormModal({
             />
             {errors.description && (
               <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="trainingAssessmentType">
+              Assessment Type <span className="text-red-500">*</span>
+            </Label>
+            <Select
+              value={trainingAssessmentType}
+              onValueChange={(value: 'PRE' | 'POST') => setTrainingAssessmentType(value)}
+            >
+              <SelectTrigger className={errors.trainingAssessmentType ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select assessment type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="PRE">Pre-Training Assessment</SelectItem>
+                <SelectItem value="POST">Post-Training Assessment</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.trainingAssessmentType && (
+              <p className="text-red-500 text-xs mt-1">{errors.trainingAssessmentType}</p>
             )}
           </div>
           

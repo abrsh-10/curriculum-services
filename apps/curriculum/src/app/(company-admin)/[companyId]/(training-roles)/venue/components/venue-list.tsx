@@ -33,7 +33,17 @@ export function VenueList({ venues, onEdit, onDelete }: VenueListProps) {
         <TableBody>
           {venues.map((venue) => (
             <TableRow key={venue.id}>
-              <TableCell className="font-medium">{venue.name}</TableCell><TableCell>{venue.location}</TableCell><TableCell>{venue.city?.name || 'N/A'}</TableCell><TableCell>{venue.zone}</TableCell><TableCell>{venue.woreda}</TableCell><TableCell className="text-right space-x-2">
+              <TableCell className="font-medium">{venue.name}</TableCell>
+              <TableCell>{venue.location}</TableCell>
+              <TableCell>{venue.city?.name || 'N/A'}</TableCell>
+              <TableCell>
+                {typeof venue.zone === 'string' 
+                  ? venue.zone 
+                  : (venue.zone as { name?: string })?.name || 'Unknown Zone'
+                }
+              </TableCell>
+              <TableCell>{venue.woreda}</TableCell>
+              <TableCell className="text-right space-x-2">
                 {/* Ensure buttons are also tightly packed if needed, though less likely issue here */}
                 <Link href={`/venue/${venue.id}`} passHref><Button variant="outline" size="sm" className="text-xs">View</Button></Link>
                 <Button variant="ghost" size="icon" onClick={() => onEdit(venue.id)} className="h-8 w-8"><Edit className="h-4 w-4" /></Button>

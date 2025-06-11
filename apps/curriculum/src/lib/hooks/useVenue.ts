@@ -29,7 +29,7 @@ export interface Venue {
   name: string;
   location: string;
   city: City;
-  zone: string;
+  zone: string | { id?: string; name?: string }; // Zone can be string or object
   woreda: string;
   latitude: number;
   longitude: number;
@@ -59,7 +59,7 @@ interface VenuesResponse {
   totalElements?: number;
 }
 
-interface VenueResponse {
+export interface VenueResponse {
     code: string;
     venue: Venue;
     message: string;
@@ -86,7 +86,7 @@ export interface CreateVenueData {
   name: string;
   location: string;
   zoneId: string;
-  cityId: string;
+  cityId?: string;
   woreda: string;
   latitude?: number; 
   longitude?: number; 
@@ -282,11 +282,48 @@ export function useVenueOperations() {
     },
   });
 
+  // Helper functions that support custom callbacks
+  const addVenueWithCallbacks = (
+    venueData: CreateVenueData, 
+    options?: { onSuccess?: () => void; onError?: (error: unknown) => void }
+  ) => {
+    addVenueMutation.mutate(venueData, {
+      onSuccess: (data) => {
+        // Built-in success handling is already done by the mutation's onSuccess
+        // Call custom success handler
+        options?.onSuccess?.();
+      },
+      onError: (error) => {
+        // Built-in error handling is already done by the mutation's onError
+        // Call custom error handler
+        options?.onError?.(error);
+      }
+    });
+  };
+
+  const updateVenueWithCallbacks = (
+    data: { venueId: string; venueData: UpdateVenueData },
+    options?: { onSuccess?: () => void; onError?: (error: unknown) => void }
+  ) => {
+    updateVenueMutation.mutate(data, {
+      onSuccess: (result) => {
+        // Built-in success handling is already done by the mutation's onSuccess
+        // Call custom success handler
+        options?.onSuccess?.();
+      },
+      onError: (error) => {
+        // Built-in error handling is already done by the mutation's onError
+        // Call custom error handler
+        options?.onError?.(error);
+      }
+    });
+  };
+
   return {
     cities,
     equipmentItems,
-    addVenue: addVenueMutation.mutate,
-    updateVenue: updateVenueMutation.mutate,
+    addVenue: addVenueWithCallbacks,
+    updateVenue: updateVenueWithCallbacks,
     deleteVenue: deleteVenueMutation.mutate,
     isAddingVenue: addVenueMutation.isPending,
     isUpdatingVenue: updateVenueMutation.isPending,

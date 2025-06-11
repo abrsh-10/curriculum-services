@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { Loading } from "@/components/ui/loading"
 
-export type TabType = 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
+export type TabType = 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'cohorts' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
 
 interface TabConfig {
   id: TabType
@@ -21,8 +21,8 @@ const allTabs: TabConfig[] = [
   { id: 'audience', label: 'Audience Profile', icon: '/audienceProfile.svg', activeIcon: '/audience_active.svg' },
   { id: 'module', label: 'Module', icon: '/module.svg', activeIcon: '/module_active.svg' },
   { id: 'students', label: 'Students', icon: '/student.svg', activeIcon: '/stuedntActive.svg' },
-  // { id: 'sessions', label: 'Sessions', icon: '/Schedule.svg', activeIcon: '/scheduleActive.svg' },
-  // { id: 'attendance', label: 'Attendance', icon: '/attendance.svg', activeIcon: '/attendanceActive.svg' },
+  { id: 'cohorts', label: 'Cohorts', icon: '/Schedule.svg', activeIcon: '/scheduleActive.svg' },
+ { id: 'attendance', label: 'Attendance', icon: '/attendance.svg', activeIcon: '/attendanceActive.svg' },
   { id: 'assessment', label: 'Assessment', icon: '/curriculum.svg', activeIcon: '/curriculum_active.svg' },
   { id: 'cat', label: 'CAT', icon: '/section.svg', activeIcon: '/section-active.svg' },
   { id: 'survey', label: 'Survey', icon: '/survey.svg', activeIcon: '/surveyActive.svg' },
@@ -61,7 +61,7 @@ export function TrainingTabs({ activeTab, onTabChange }: TrainingTabsProps) {
   } else if (isMeExpert) {
     visibleTabs = allTabs.filter(tab => ['overview', 'evaluation'].includes(tab.id))
   } else if (isCurriculumAdmin)  {
-    visibleTabs = allTabs.filter(tab => !['students', 'evaluation', 'sessions', 'attendance', 'certificate'].includes(tab.id))
+    visibleTabs = allTabs.filter(tab => !['students', 'evaluation', 'cohorts', 'attendance', 'certificate'].includes(tab.id))
   } else if (isTrainingAdmin) {
     visibleTabs = allTabs.filter(tab => !['evaluation', 'survey', 'cat'].includes(tab.id))
   }

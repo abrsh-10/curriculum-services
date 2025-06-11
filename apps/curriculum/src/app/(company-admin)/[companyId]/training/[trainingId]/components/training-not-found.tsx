@@ -1,5 +1,5 @@
 interface TrainingNotFoundProps {
-  type: 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
+  type: 'overview' | 'profile' | 'audience' | 'module' | 'evaluation' | 'students' | 'sessions' | 'cohorts' | 'attendance' | 'certificate' | 'assessment' | 'cat' | 'survey' | 'content'
 }
 
 const messages = {
@@ -30,6 +30,10 @@ const messages = {
   sessions: {
     title: 'Sessions Not Found',
     description: 'We couldn\'t find any sessions for this training.'
+  },
+  cohorts: {
+    title: 'Cohorts Not Found',
+    description: 'We couldn\'t find any cohorts for this training.'
   },
   attendance: {
     title: 'Attendance Records Not Found',

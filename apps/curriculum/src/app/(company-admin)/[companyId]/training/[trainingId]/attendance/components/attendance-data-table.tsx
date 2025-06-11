@@ -45,6 +45,8 @@ interface AttendanceDataTableProps<TData> {
   hasUnsavedChanges?: boolean
   sessionId?: string
   unsavedStudentId?: string | null
+  isInitialLoadComplete: boolean
+  canEditAttendance: boolean
 }
 
 export function AttendanceDataTable({
@@ -59,15 +61,13 @@ export function AttendanceDataTable({
   hasUnsavedChanges = false,
   sessionId = "",
   unsavedStudentId = null,
+  isInitialLoadComplete,
+  canEditAttendance,
 }: AttendanceDataTableProps<AttendanceStudent>) {
   const [sorting, setSorting] = useState<SortingState>([])
-  const { isTrainer, isProjectManager, isTrainingAdmin } = useUserRole()
-
-  // Only trainers can edit attendance
-  const canEditAttendance = isTrainer
   
-  // All other roles are view-only
-  const isViewOnly = !canEditAttendance
+  // Only consider view-only if initial load is complete
+  const isViewOnly = isInitialLoadComplete && !canEditAttendance
 
   const table = useReactTable({
     data: Array.isArray(data) ? data : [],
@@ -152,7 +152,7 @@ export function AttendanceDataTable({
             {/* Report button visible to all, but enabled only for trainers */}
             <AddReportButton 
               sessionId={sessionId} 
-              disabled={!isTrainer}
+              disabled={!canEditAttendance}
             />
           </div>
         </div>
@@ -189,8 +189,8 @@ export function AttendanceDataTable({
               </TableRow>
             ) : data && data.length > 0 ? (
               table.getRowModel().rows.map((row) => {
-                // For view-only mode, mark all rows as disabled
-                if (isViewOnly && row.original) {
+                // Only apply disabled state if initial load is complete
+                if (isInitialLoadComplete && isViewOnly && row.original) {
                   (row.original as AttendanceStudent)._isDisabled = true;
                 }
                 

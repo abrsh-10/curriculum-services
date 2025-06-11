@@ -27,6 +27,25 @@ export const AssessmentColumns: ColumnDef<TrainingAssessment>[] = [
     }
   },
   {
+    id: "trainingAssessmentType",
+    header: "Type",
+    cell: ({ row }) => {
+      const assessmentType = row.original.trainingAssessmentType
+      
+      return (
+        <div className="flex items-center gap-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            assessmentType === 'PRE' 
+              ? 'bg-[#EBF4FF] text-[#0B75FF]'
+              : 'bg-[#f9f9db] text-[#959713]'
+          }`}>
+            {assessmentType === 'PRE' ? 'Pre-Training' : 'Post-Training'}
+          </span>
+        </div>
+      )
+    }
+  },
+  {
     id: "fileLink",
     header: "File Link",
     cell: ({ row }) => {

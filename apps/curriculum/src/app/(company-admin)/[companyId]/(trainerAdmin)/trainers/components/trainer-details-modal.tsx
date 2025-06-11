@@ -21,6 +21,14 @@ const trainerFormSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "OTHER"], { required_error: "Gender is required" }).optional(),
   email: z.string().email("Invalid email address").min(1, "Email is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
+  
+  // Location fields - hierarchical structure
+  countryId: z.string().optional(),
+  regionId: z.string().optional(),
+  zoneId: z.string().min(1, "Zone is required"),
+  cityId: z.string().optional(),
+  woreda: z.string().optional(),
+  houseNumber: z.string().optional(),
   location: z.string().optional(),
   languageId: z.string().optional(),
   academicLevelId: z.string().min(1, "Academic level is required"),
@@ -28,14 +36,10 @@ const trainerFormSchema = z.object({
   trainingTagIds: z.array(z.string()).optional(),
   coursesTaught: z.array(z.string()).optional(),
   certifications: z.array(z.string()).optional(),
-  zoneId: z.string().min(1, "Zone is required"),
-  cityId: z.string().min(1, "City is required"),
-  woreda: z.string().optional(),
-  houseNumber: z.string().optional(),
 });
 
 type TrainerFormValues = z.infer<typeof trainerFormSchema>;
-
+  
 interface TrainerDetailsModalProps {
   trainer: Trainer
   isOpen: boolean
@@ -69,17 +73,22 @@ export function TrainerDetailsModal({
       gender: trainer.gender,
       dateOfBirth: trainer.dateOfBirth ? new Date(trainer.dateOfBirth) : undefined,
       languageId: trainer.language?.id,
+      
+      // Location fields
+      countryId: trainer.zone?.region?.country?.id || "",
+      regionId: trainer.zone?.region?.id || "",
+      zoneId: trainer.zone?.id || "",
+      cityId: trainer.city?.id || "",
+      woreda: trainer.woreda || "",
+      houseNumber: trainer.houseNumber || "",
       location: trainer.location,
+      
       academicLevelId: trainer.academicLevel?.id,
       experienceYears: trainer.experienceYears,
       trainingTagIds: trainer.trainingTags?.map(tag => tag.id) || [],
       coursesTaught: trainer.coursesTaught || [],
       certifications: trainer.certifications || [],
       faydaId: trainer.faydaId,
-      zoneId: trainer.zone?.id || "",
-      cityId: trainer.city?.id || "",
-      woreda: trainer.woreda,
-      houseNumber: trainer.houseNumber,
     },
   })
 
@@ -97,16 +106,16 @@ export function TrainerDetailsModal({
       dateOfBirth: formattedDateOfBirth,
       gender: values.gender || trainer.gender,
       languageId: values.languageId || trainer.language?.id || "1",
+      zoneId: values.zoneId || trainer.zone?.id || "",
+      cityId: values.cityId || trainer.city?.id || "",
+      woreda: values.woreda || trainer.woreda || "",
+      houseNumber: values.houseNumber || trainer.houseNumber || "",
       location: values.location || trainer.location,
       academicLevelId: values.academicLevelId,
       trainingTagIds: values.trainingTagIds || [],
       experienceYears: values.experienceYears,
       coursesTaught: values.coursesTaught || [],
       certifications: values.certifications || [],
-      zoneId: values.zoneId || trainer.zone?.id || "",
-      cityId: values.cityId || trainer.city?.id || "",
-      woreda: values.woreda || trainer.woreda || "",
-      houseNumber: values.houseNumber || trainer.houseNumber || "",
     };
 
     try {

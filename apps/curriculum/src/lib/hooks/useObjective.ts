@@ -110,13 +110,12 @@ export function useBulkUpdateObjective() {
   return useMutation({
     mutationFn: async ({ data, trainingId }: { data: BulkUpdateObjectiveData, trainingId: string }) => {
       const token = getCookie('token')
-      const response = await axios.post(
+      const response = await axios.put(
         `${process.env.NEXT_PUBLIC_API}/training/edit-objective-bulk`,
         data,
         {
           headers: { 
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            Authorization: `Bearer ${token}`
           }
         }
       )

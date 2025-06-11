@@ -1,21 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 import { getCookie } from "@curriculum-services/auth";
 import { toast } from "sonner";
 
-// Define types
-export interface AssessmentQuestion {
+// Define error interface for API responses
+interface ApiErrorResponse {
+  message?: string;
+}
+
+// Define types based on the API structure
+export interface SurveyQuestion {
   question: string;
   choices: string[];
 }
 
-export interface CreateSessionAssessmentData {
-  name: string;
-  description: string;
-  surveyQuestions: AssessmentQuestion[];
-}
-
-export interface AssessmentEntry {
+export interface SurveyEntry {
   id: string;
   question: string;
   choices: string[];
@@ -30,10 +29,41 @@ export interface Survey {
   sessionName: string | null;
 }
 
-export interface SessionAssessmentResponse {
+export interface SurveyDetail {
+  id: string;
+  name: string;
+  description: string;
+  sessionId: string | null;
+  sessionName: string | null;
+  surveyEntries: SurveyEntry[];
+}
+
+export interface SurveysResponse {
   code: string;
   surveys: Survey[];
   message: string;
+}
+
+export interface SurveyDetailResponse {
+  code: string;
+  survey: SurveyDetail;
+  message: string;
+}
+
+export interface CreateSurveyData {
+  name: string;
+  description: string;
+  surveyQuestions: SurveyQuestion[];
+}
+
+export interface UpdateSurveyData {
+  name: string;
+  description: string;
+}
+
+export interface SubmitAnswerData {
+  answer: string;
+  traineeId: string;
 }
 
 export interface UpdateQuestionData {
@@ -41,63 +71,48 @@ export interface UpdateQuestionData {
   choices: string[];
 }
 
-export interface AddQuestionData {
-  question: string;
-  choices: string[];
-}
-
 // Define query keys
-const sessionAssessmentQueryKey = "sessionAssessments";
+const surveyQueryKeys = {
+  all: ['surveys'] as const,
+  training: (trainingId: string) => ['surveys', 'training', trainingId] as const,
+  detail: (surveyId: string, traineeId?: string) => ['surveys', 'detail', surveyId, traineeId] as const,
+  session: (sessionId: string) => ['surveys', 'session', sessionId] as const,
+};
 
 /**
- * Hook for creating a new session assessment
+ * Hook to fetch all surveys for a training
  */
-export function useCreateSessionAssessment(trainingId: string) {
-  const queryClient = useQueryClient();
-
-  const createAssessmentMutation = useMutation({
-    mutationFn: async (assessmentData: CreateSessionAssessmentData) => {
-      const token = getCookie("token");
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API}/survey/training/${trainingId}`,
-        assessmentData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return response.data as SessionAssessmentResponse;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Survey created successfully");
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey, trainingId] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to create survey");
-    },
-  });
-
-  return {
-    createSessionAssessment: createAssessmentMutation.mutate,
-    isLoading: createAssessmentMutation.isPending,
-    isSuccess: createAssessmentMutation.isSuccess,
-    isError: createAssessmentMutation.isError,
-    error: createAssessmentMutation.error,
-  };
-}
-
-/**
- * Hook to fetch session assessment
- */
-export function useSessionAssessments(trainingId: string, traineeId?: string) {
+export function useSurveys(trainingId: string) {
   return useQuery({
-    queryKey: [sessionAssessmentQueryKey, trainingId, traineeId],
+    queryKey: surveyQueryKeys.training(trainingId),
     queryFn: async () => {
       try {
         const token = getCookie("token");
-        
-        // Build URL with query parameters if traineeId is provided
-        let url = `${process.env.NEXT_PUBLIC_API}/survey/training/${trainingId}`;
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API}/survey/training/${trainingId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        return response.data as SurveysResponse;
+      } catch (error: unknown) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        throw new Error(axiosError?.response?.data?.message || "Failed to load surveys");
+      }
+    },
+  });
+}
+
+/**
+ * Hook to fetch survey details including all questions
+ */
+export function useSurveyDetail(surveyId: string, traineeId?: string) {
+  return useQuery({
+    queryKey: surveyQueryKeys.detail(surveyId, traineeId),
+    queryFn: async () => {
+      try {
+        const token = getCookie("token");
+        let url = `${process.env.NEXT_PUBLIC_API}/survey/${surveyId}`;
         if (traineeId) {
           url += `?traineeId=${traineeId}`;
         }
@@ -105,116 +120,125 @@ export function useSessionAssessments(trainingId: string, traineeId?: string) {
         const response = await axios.get(url, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        return response.data as SessionAssessmentResponse;
-      } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        throw new Error(error?.response?.data?.message || "Failed to load surveys");
+        return response.data as SurveyDetailResponse;
+      } catch (error: unknown) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        throw new Error(axiosError?.response?.data?.message || "Failed to load survey details");
       }
     },
+    enabled: !!surveyId,
   });
 }
 
 /**
- * Hook for updating an existing session assessment
+ * Hook to fetch surveys by session
  */
-export function useUpdateSessionAssessment() {
+export function useSurveysBySession(sessionId: string) {
+  return useQuery({
+    queryKey: surveyQueryKeys.session(sessionId),
+    queryFn: async () => {
+      try {
+        const token = getCookie("token");
+        const response = await axios.get(
+          `${process.env.NEXT_PUBLIC_API}/survey/session/${sessionId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+        return response.data;
+      } catch (error: unknown) {
+        const axiosError = error as AxiosError<ApiErrorResponse>;
+        throw new Error(axiosError?.response?.data?.message || "Failed to load session surveys");
+      }
+    },
+    enabled: !!sessionId,
+  });
+}
+
+/**
+ * Hook for creating a new survey with questions
+ */
+export function useCreateSurvey(trainingId: string) {
   const queryClient = useQueryClient();
 
-  const updateAssessmentMutation = useMutation({
-    mutationFn: async (surveyData: {
-      id: string;
-      name: string;
-      description: string;
-      surveyQuestions: AssessmentQuestion[];
-    }) => {
+  const createSurveyMutation = useMutation({
+    mutationFn: async (surveyData: CreateSurveyData) => {
       const token = getCookie("token");
-      const response = await axios.patch(
-        `${process.env.NEXT_PUBLIC_API}/survey/${surveyData.id}`,
-        {
-          name: surveyData.name,
-          description: surveyData.description,
-          surveyQuestions: surveyData.surveyQuestions
-        },
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/survey/training/${trainingId}`,
+        surveyData,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      return { responseData: response.data, surveyId: surveyData.id };
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Survey created successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.training(trainingId) });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to create survey");
+    },
+  });
+
+  return {
+    createSurvey: createSurveyMutation.mutate,
+    isLoading: createSurveyMutation.isPending,
+    isSuccess: createSurveyMutation.isSuccess,
+    isError: createSurveyMutation.isError,
+    error: createSurveyMutation.error,
+  };
+}
+
+/**
+ * Hook for updating survey name and description only
+ */
+export function useUpdateSurvey() {
+  const queryClient = useQueryClient();
+
+  const updateSurveyMutation = useMutation({
+    mutationFn: async ({ surveyId, data }: { surveyId: string; data: UpdateSurveyData }) => {
+      const token = getCookie("token");
+      const response = await axios.put(
+        `${process.env.NEXT_PUBLIC_API}/survey/${surveyId}`,
+        data,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      return { responseData: response.data, surveyId };
     },
     onSuccess: ({ responseData, surveyId }) => {
       toast.success(responseData.message || "Survey updated successfully");
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey, surveyId] });
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.detail(surveyId) });
     },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Failed to update survey");
     },
   });
 
   return {
-    updateSessionAssessment: updateAssessmentMutation.mutate,
-    isLoading: updateAssessmentMutation.isPending,
-    isSuccess: updateAssessmentMutation.isSuccess,
-    isError: updateAssessmentMutation.isError,
-    error: updateAssessmentMutation.error,
+    updateSurvey: updateSurveyMutation.mutate,
+    isLoading: updateSurveyMutation.isPending,
+    isSuccess: updateSurveyMutation.isSuccess,
+    isError: updateSurveyMutation.isError,
+    error: updateSurveyMutation.error,
   };
 }
 
 /**
- * Hook for deleting a session assessment
+ * Hook for deleting a survey
  */
-export function useDeleteSessionAssessment() {
+export function useDeleteSurvey() {
   const queryClient = useQueryClient();
 
-  const deleteAssessmentMutation = useMutation({
-    mutationFn: async (sessionId: string) => {
+  const deleteSurveyMutation = useMutation({
+    mutationFn: async (surveyId: string) => {
       const token = getCookie("token");
-      await axios.delete(`${process.env.NEXT_PUBLIC_API}/session-assessment/${sessionId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return sessionId;
-    },
-    onSuccess: (sessionId) => {
-      toast.success("Assessment deleted successfully");
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-      queryClient.removeQueries({ queryKey: [sessionAssessmentQueryKey, sessionId] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to delete assessment");
-    },
-  });
-
-  return {
-    deleteSessionAssessment: deleteAssessmentMutation.mutate,
-    isLoading: deleteAssessmentMutation.isPending,
-    isSuccess: deleteAssessmentMutation.isSuccess,
-    isError: deleteAssessmentMutation.isError,
-    error: deleteAssessmentMutation.error,
-  };
-}
-
-/**
- * Hook for submitting an answer to a pre-training assessment question
- */
-export interface SubmitAnswerData {
-  answer: string;
-  traineeId: string;
-}
-
-export function useSubmitAssessmentAnswer() {
-  const queryClient = useQueryClient();
-
-  const submitAnswerMutation = useMutation({
-    mutationFn: async ({
-      preTrainingAssessmentEntryId,
-      answerData,
-    }: {
-      preTrainingAssessmentEntryId: string;
-      answerData: SubmitAnswerData;
-    }) => {
-      const token = getCookie("token");
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/entry/${preTrainingAssessmentEntryId}/answer`,
-        answerData,
+      const response = await axios.delete(
+        `${process.env.NEXT_PUBLIC_API}/survey/${surveyId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
@@ -222,171 +246,25 @@ export function useSubmitAssessmentAnswer() {
       return response.data;
     },
     onSuccess: (data) => {
-      toast.success(data.message || "Answer submitted successfully");
-      // Invalidate any queries that might be affected by this answer submission
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
+      toast.success(data.message || "Survey deleted successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
     },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to submit answer");
-    },
-  });
-
-  return {
-    submitAnswer: submitAnswerMutation.mutate,
-    isLoading: submitAnswerMutation.isPending,
-    isSuccess: submitAnswerMutation.isSuccess,
-    isError: submitAnswerMutation.isError,
-    error: submitAnswerMutation.error,
-  };
-}
-
-/**
- * Hook for updating a pre-training assessment question
- */
-export function useUpdateAssessmentQuestion() {
-  const queryClient = useQueryClient();
-
-  const updateQuestionMutation = useMutation({
-    mutationFn: async ({
-      preTrainingAssessmentEntryId,
-      questionData,
-    }: {
-      preTrainingAssessmentEntryId: string;
-      questionData: UpdateQuestionData;
-    }) => {
-      const token = getCookie("token");
-      const response = await axios.patch(
-        `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/entry/${preTrainingAssessmentEntryId}/question`,
-        questionData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Question updated successfully");
-      // Invalidate session assessments to refresh data
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to update question");
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to delete survey");
     },
   });
 
   return {
-    updateQuestion: updateQuestionMutation.mutate,
-    isLoading: updateQuestionMutation.isPending,
-    isSuccess: updateQuestionMutation.isSuccess,
-    isError: updateQuestionMutation.isError,
-    error: updateQuestionMutation.error,
+    deleteSurvey: deleteSurveyMutation.mutate,
+    isLoading: deleteSurveyMutation.isPending,
+    isSuccess: deleteSurveyMutation.isSuccess,
+    isError: deleteSurveyMutation.isError,
+    error: deleteSurveyMutation.error,
   };
 }
 
 /**
- * Hook to fetch a pre-training assessment by ID
- */
-export function usePreTrainingAssessment(assessmentId: string) {
-  return useQuery({
-    queryKey: ["preTrainingAssessment", assessmentId],
-    queryFn: async () => {
-      if (!assessmentId) {
-        throw new Error("Assessment ID is required");
-      }
-      try {
-        const token = getCookie("token");
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/${assessmentId}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        return response.data as SessionAssessmentResponse;
-      } catch (error: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-        throw new Error(error?.response?.data?.message || "Failed to load pre-training assessment");
-      }
-    },
-    enabled: !!assessmentId, // Only run query if assessmentId is provided
-  });
-}
-
-/**
- * Hook for deleting a pre-training assessment
- */
-export function useDeletePreTrainingAssessment() {
-  const queryClient = useQueryClient();
-
-  const deleteAssessmentMutation = useMutation({
-    mutationFn: async (assessmentId: string) => {
-      const token = getCookie("token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/${assessmentId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return assessmentId;
-    },
-    onSuccess: (assessmentId) => {
-      toast.success("Assessment deleted successfully");
-      // Invalidate both session and pre-training assessment queries
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-      queryClient.invalidateQueries({ queryKey: ["preTrainingAssessment"] });
-      queryClient.removeQueries({ queryKey: ["preTrainingAssessment", assessmentId] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to delete assessment");
-    },
-  });
-
-  return {
-    deletePreTrainingAssessment: deleteAssessmentMutation.mutate,
-    isLoading: deleteAssessmentMutation.isPending,
-    isSuccess: deleteAssessmentMutation.isSuccess,
-    isError: deleteAssessmentMutation.isError,
-    error: deleteAssessmentMutation.error,
-  };
-}
-
-/**
- * Hook for deleting a specific assessment entry (question)
- */ 
-export function useDeleteAssessmentEntry() {
-  const queryClient = useQueryClient();
-
-  const deleteEntryMutation = useMutation({
-    mutationFn: async (entryId: string) => {
-      const token = getCookie("token");
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/entry/${entryId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return entryId;
-    },
-    onSuccess: () => {
-      toast.success("Question deleted successfully");
-      // Invalidate all assessment queries as the entry could be part of any assessment
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-      queryClient.invalidateQueries({ queryKey: ["preTrainingAssessment"] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to delete question");
-    },
-  });
-
-  return {
-    deleteAssessmentEntry: deleteEntryMutation.mutate,
-    isLoading: deleteEntryMutation.isPending,
-    isSuccess: deleteEntryMutation.isSuccess,
-    isError: deleteEntryMutation.isError,
-    error: deleteEntryMutation.error,
-  };
-}
-
-/**
- * Hook for adding a new question to an existing survey
+ * Hook for adding a single question to an existing survey
  */
 export function useAddQuestionToSurvey() {
   const queryClient = useQueryClient();
@@ -397,7 +275,7 @@ export function useAddQuestionToSurvey() {
       questionData,
     }: {
       surveyId: string;
-      questionData: AddQuestionData;
+      questionData: SurveyQuestion;
     }) => {
       const token = getCookie("token");
       const response = await axios.post(
@@ -407,57 +285,14 @@ export function useAddQuestionToSurvey() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      return response.data;
+      return { responseData: response.data, surveyId };
     },
-    onSuccess: (data) => {
-      toast.success(data.message || "Question added successfully");
-      // Invalidate session assessments to refresh data
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
+    onSuccess: ({ responseData, surveyId }) => {
+      toast.success(responseData.message || "Question added successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.detail(surveyId) });
     },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
-      toast.error(error.response?.data?.message || "Failed to add question");
-    },
-  });
-
-  return {
-    addQuestion: addQuestionMutation.mutate,
-    isLoading: addQuestionMutation.isPending,
-    isSuccess: addQuestionMutation.isSuccess,
-    isError: addQuestionMutation.isError,
-    error: addQuestionMutation.error,
-  };
-}
-
-/**
- * Hook for adding a new question to an existing assessment
- */
-export function useAddQuestionToAssessment() {
-  const queryClient = useQueryClient();
-
-  const addQuestionMutation = useMutation({
-    mutationFn: async ({
-      assessmentId,
-      questionData,
-    }: {
-      assessmentId: string;
-      questionData: AddQuestionData;
-    }) => {
-      const token = getCookie("token");
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API}/pre-training-assessment/${assessmentId}/question`,
-        questionData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      return response.data;
-    },
-    onSuccess: (data) => {
-      toast.success(data.message || "Question added successfully");
-      // Invalidate session assessments to refresh data
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
-    },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Failed to add question");
     },
   });
@@ -483,7 +318,7 @@ export function useAddQuestionsToSurvey() {
       questions,
     }: {
       surveyId: string;
-      questions: AssessmentQuestion[];
+      questions: SurveyQuestion[];
     }) => {
       const token = getCookie("token");
       const response = await axios.post(
@@ -493,14 +328,14 @@ export function useAddQuestionsToSurvey() {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      return response.data;
+      return { responseData: response.data, surveyId };
     },
-    onSuccess: (data) => {
-      toast.success(data.message || "Questions added successfully");
-      // Invalidate session assessments to refresh data
-      queryClient.invalidateQueries({ queryKey: [sessionAssessmentQueryKey] });
+    onSuccess: ({ responseData, surveyId }) => {
+      toast.success(responseData.message || "Questions added successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.detail(surveyId) });
     },
-    onError: (error: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+    onError: (error: AxiosError<ApiErrorResponse>) => {
       toast.error(error.response?.data?.message || "Failed to add questions");
     },
   });
@@ -511,5 +346,160 @@ export function useAddQuestionsToSurvey() {
     isSuccess: addQuestionsMutation.isSuccess,
     isError: addQuestionsMutation.isError,
     error: addQuestionsMutation.error,
+  };
+}
+
+/**
+ * Hook for updating a specific question (survey entry)
+ */
+export function useUpdateSurveyQuestion() {
+  const queryClient = useQueryClient();
+
+  const updateQuestionMutation = useMutation({
+    mutationFn: async ({
+      surveyEntryId,
+      questionData,
+    }: {
+      surveyEntryId: string;
+      questionData: UpdateQuestionData;
+    }) => {
+      const token = getCookie("token");
+      const response = await axios.patch(
+        `${process.env.NEXT_PUBLIC_API}/survey/entry/${surveyEntryId}/question`,
+        questionData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Question updated successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to update question");
+    },
+  });
+
+  return {
+    updateQuestion: updateQuestionMutation.mutate,
+    isLoading: updateQuestionMutation.isPending,
+    isSuccess: updateQuestionMutation.isSuccess,
+    isError: updateQuestionMutation.isError,
+    error: updateQuestionMutation.error,
+  };
+}
+
+/**
+ * Hook for deleting a specific survey entry (question)
+ */
+export function useDeleteSurveyEntry() {
+  const queryClient = useQueryClient();
+
+  const deleteSurveyEntryMutation = useMutation({
+    mutationFn: async (surveyEntryId: string) => {
+      const token = getCookie("token");
+      const response = await axios.delete(
+        `${process.env.NEXT_PUBLIC_API}/survey/entry/${surveyEntryId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Question deleted successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to delete question");
+    },
+  });
+
+  return {
+    deleteSurveyEntry: deleteSurveyEntryMutation.mutate,
+    isLoading: deleteSurveyEntryMutation.isPending,
+    isSuccess: deleteSurveyEntryMutation.isSuccess,
+    isError: deleteSurveyEntryMutation.isError,
+    error: deleteSurveyEntryMutation.error,
+  };
+}
+
+/**
+ * Hook for submitting an answer to a survey question (trainee side)
+ */
+export function useSubmitSurveyAnswer() {
+  const queryClient = useQueryClient();
+
+  const submitAnswerMutation = useMutation({
+    mutationFn: async ({
+      surveyEntryId,
+      answerData,
+    }: {
+      surveyEntryId: string;
+      answerData: SubmitAnswerData;
+    }) => {
+      const token = getCookie("token");
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/survey/entry/${surveyEntryId}/answer`,
+        answerData,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Answer submitted successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to submit answer");
+    },
+  });
+
+  return {
+    submitAnswer: submitAnswerMutation.mutate,
+    isLoading: submitAnswerMutation.isPending,
+    isSuccess: submitAnswerMutation.isSuccess,
+    isError: submitAnswerMutation.isError,
+    error: submitAnswerMutation.error,
+  };
+}
+
+/**
+ * Hook for assigning a survey to a session
+ */
+export function useAssignSurveyToSession() {
+  const queryClient = useQueryClient();
+
+  const assignSurveyMutation = useMutation({
+    mutationFn: async (surveyId: string) => {
+      const token = getCookie("token");
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/survey/${surveyId}/assign-session`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data.message || "Survey assigned to session successfully");
+      queryClient.invalidateQueries({ queryKey: surveyQueryKeys.all });
+    },
+    onError: (error: AxiosError<ApiErrorResponse>) => {
+      toast.error(error.response?.data?.message || "Failed to assign survey to session");
+    },
+  });
+
+  return {
+    assignSurveyToSession: assignSurveyMutation.mutate,
+    isLoading: assignSurveyMutation.isPending,
+    isSuccess: assignSurveyMutation.isSuccess,
+    isError: assignSurveyMutation.isError,
+    error: assignSurveyMutation.error,
   };
 }

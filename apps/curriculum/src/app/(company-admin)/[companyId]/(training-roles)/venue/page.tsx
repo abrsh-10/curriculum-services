@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useVenues, useDeleteVenue, Venue } from "@/lib/hooks/useVenue";
+import { useVenues, useDeleteVenue, useVenue, Venue } from "@/lib/hooks/useVenue";
 import { Button } from "@/components/ui/button";
 import { Loading } from "@/components/ui/loading";
 import { Plus } from "lucide-react";
@@ -11,6 +11,7 @@ import Image from 'next/image'
 import { useDebounce } from "@/lib/hooks/useDebounce";
 import { createVenueColumns } from "./components/venue-columns";
 import { VenueDataTable } from "./components/venue-data-table";
+import { AddVenueDialog } from "./components/add-venue-dialog";
 
 // TODO: Implement pagination controls
 const DEFAULT_PAGE_SIZE = 20;
@@ -25,9 +26,16 @@ export default function VenuePage() {
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 500);
     const [zone, setZone] = useState<string>();
+    
+    // Edit dialog state
+    const [editingVenue, setEditingVenue] = useState<Venue | null>(null);
+    const [editingVenueId, setEditingVenueId] = useState<string | null>(null);
 
     const { data, isLoading, error } = useVenues(page - 1, pageSize);
     const { deleteVenue, isLoading: isDeleting } = useDeleteVenue();
+    
+    // Fetch detailed venue data when editing
+    const { data: venueDetails, isLoading: isLoadingVenueDetails } = useVenue(editingVenueId || undefined);
 
     const venues = data?.venues || [];
 
@@ -48,16 +56,27 @@ export default function VenuePage() {
 
     // Filter venues based on search query
     const filteredVenues = useMemo(() => 
-        data?.venues.filter(venue =>
-            venue.name.toLowerCase().includes(debouncedSearch.toLowerCase()) &&
-            (!zone || venue.zone === zone)
-        ) || [], 
+        data?.venues.filter(venue => {
+            const matchesSearch = venue.name?.toLowerCase().includes(debouncedSearch.toLowerCase());
+            // Handle zone filtering safely - zone could be string or object
+            let matchesZone = !zone;
+            if (zone && venue.zone) {
+                if (typeof venue.zone === 'string') {
+                    matchesZone = venue.zone === zone;
+                } else {
+                    // If venue.zone is an object, try to match by id or name
+                    const zoneObj = venue.zone as { id?: string; name?: string };
+                    matchesZone = zoneObj.id === zone || zoneObj.name === zone;
+                }
+            }
+            return matchesSearch && matchesZone;
+        }) || [], 
     [data?.venues, debouncedSearch, zone]);
 
     // Handle venue edit
     const handleEditVenue = useCallback((venue: Venue) => {
-        // TODO: Implement edit functionality - navigate to edit route
-        console.log("Edit venue:", venue);
+        setEditingVenue(venue);
+        setEditingVenueId(venue.id);
     }, []);
 
     // Handle venue deletion
@@ -73,6 +92,19 @@ export default function VenuePage() {
     const handleAddVenue = useCallback(() => {
         router.push(`/${companyId}/venue/add`);
     }, [router, companyId]);
+    
+    // Handle dialog success (add/edit)
+    const handleDialogSuccess = useCallback(() => {
+        setEditingVenue(null);
+        setEditingVenueId(null);
+        router.refresh(); // Refresh the page to show updated data
+    }, [router]);
+    
+    // Handle dialog close
+    const handleDialogClose = useCallback(() => {
+        setEditingVenue(null);
+        setEditingVenueId(null);
+    }, []);
 
     // Create venue columns with edit and delete handlers
     const venueColumns = useMemo(() => createVenueColumns({
@@ -181,6 +213,17 @@ export default function VenuePage() {
                     }}
                     onEdit={handleEditVenue}
                     onDelete={handleDeleteVenue}
+                />
+                
+                {/* Edit Venue Dialog */}
+                <AddVenueDialog
+                    companyId={companyId}
+                    venue={editingVenue}
+                    venueDetails={venueDetails}
+                    isLoadingDetails={isLoadingVenueDetails}
+                    open={!!editingVenue}
+                    onSuccess={handleDialogSuccess}
+                    onClose={handleDialogClose}
                 />
             </div>
         </div>

@@ -553,7 +553,7 @@ export function ContactInfoForm({ form, countries, regions, zones, cities }: Con
             name="cityId"
             render={({ field }) => (
               <FormItem>
-                <FormLabel className="text-sm font-medium">City/Town <span className="text-red-500">*</span></FormLabel>
+                <FormLabel className="text-sm font-medium">City/Town </FormLabel>
                 <FormDescription className="text-gray-500 text-sm">
                   Select your city or town
                 </FormDescription>

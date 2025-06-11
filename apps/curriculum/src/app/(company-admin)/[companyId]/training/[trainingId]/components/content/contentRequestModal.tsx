@@ -23,7 +23,6 @@ import { useCreateContent } from "@/lib/hooks/useContent"
 import { useModulesByTrainingId } from "@/lib/hooks/useModule"
 import { useGetLessons } from "@/lib/hooks/useLesson"
 import { useTrainingAssessments } from "@/lib/hooks/useCat"
-import { toast } from "sonner"
 import { useParams } from "next/navigation"
 import { Loader2, Info, AlertTriangle, BookOpen, FileType, Mail, ClipboardCheck, FolderOpen } from "lucide-react"
 

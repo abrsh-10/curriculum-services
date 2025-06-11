@@ -1,28 +1,32 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Plus, Trash2, PencilIcon, AlertCircle, CalendarIcon, ClipboardList } from "lucide-react"
 import { 
-  useCreateSessionAssessment, 
-  useSessionAssessments,
-  useUpdateAssessmentQuestion,
-  useDeleteAssessmentEntry,
-  useDeletePreTrainingAssessment,
+  useCreateSurvey, 
+  useSurveys,
+  useSurveyDetail,
+  useUpdateSurvey,
+  useDeleteSurvey,
+  useUpdateSurveyQuestion,
+  useDeleteSurveyEntry,
   useAddQuestionToSurvey,
-  AssessmentQuestion,
-  AssessmentEntry,
-  Survey,
-  useUpdateSessionAssessment
+  SurveyQuestion,
+  SurveyEntry,
+  Survey
 } from "@/lib/hooks/useSessionAssesment"
 import { toast } from "sonner"
 import { Loading } from "@/components/ui/loading"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { formatDateToDisplay } from "@/lib/utils"
+import React from "react"
+import { SurveyDeleteDialog } from "./survey/SurveyDeleteDialog"
+import { SurveyQuestionManager } from "./survey/SurveyQuestionManager"
 
 interface SurveyComponentProps {
   trainingId: string;
@@ -81,7 +85,7 @@ const ExistingQuestionCard = ({
   onEdit,
   onDelete
 }: {
-  entry: AssessmentEntry;
+  entry: SurveyEntry;
   index: number;
   onEdit: () => void;
   onDelete: () => void;
@@ -131,7 +135,7 @@ const ExistingQuestionCard = ({
 // Add a SessionSurvey type definition
 interface SessionSurvey {
   id: string;
-  preTrainingAssessmentEntries?: AssessmentEntry[];
+  preTrainingAssessmentEntries?: SurveyEntry[];
   // Add other properties as needed
 }
 
@@ -139,7 +143,7 @@ interface SessionSurvey {
 interface CreateSurveyData {
   name: string;
   description: string;
-  surveyQuestions: AssessmentQuestion[];
+  surveyQuestions: SurveyQuestion[];
 }
 
 // Survey card component to display each survey in the list
@@ -204,26 +208,38 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
   const [isEditing, setIsEditing] = useState<string | null>(null)
   const [isViewing, setIsViewing] = useState(false)
   const [currentSurveyId, setCurrentSurveyId] = useState<string | null>(null)
-  const [questions, setQuestions] = useState<AssessmentQuestion[]>([
+  const [questions, setQuestions] = useState<SurveyQuestion[]>([
     { question: "", choices: ["", ""] }
   ])
   const [surveyName, setSurveyName] = useState("")
   const [surveyDescription, setSurveyDescription] = useState("")
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; survey: Survey | null }>({
+    isOpen: false,
+    survey: null
+  })
   
   // Fetch existing surveys for this training
   const { 
-    data: assessmentData, 
+    data: surveyData, 
     isLoading: isLoadingSurveys,
     error: surveysError,
     refetch: refetchSurveys
-  } = useSessionAssessments(trainingId)
+  } = useSurveys(trainingId)
   
-  const { createSessionAssessment, isLoading: isCreatingAssessment } = useCreateSessionAssessment(trainingId)
-  const { deletePreTrainingAssessment, isLoading: isDeletingAssessment } = useDeletePreTrainingAssessment()
-  const { updateSessionAssessment, isLoading: isUpdatingAssessment } = useUpdateSessionAssessment()
+  // Fetch survey details when viewing or editing
+  const { 
+    data: surveyDetailData, 
+    isLoading: isLoadingSurveyDetails,
+    refetch: refetchSurveyDetails
+  } = useSurveyDetail(currentSurveyId || "", undefined)
+  
+  const { createSurvey, isLoading: isCreatingSurvey } = useCreateSurvey(trainingId)
+  const { deleteSurvey, isLoading: isDeletingSurvey } = useDeleteSurvey()
+  const { updateSurvey, isLoading: isUpdatingSurvey } = useUpdateSurvey()
 
   // Extract survey data
-  const surveys = assessmentData?.surveys || []
+  const surveys = surveyData?.surveys || []
+  const surveyDetail = surveyDetailData?.survey
   const hasExistingSurveys = useMemo(() => surveys.length > 0, [surveys])
 
   // Initialize form with default values
@@ -274,7 +290,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
   const removeChoice = useCallback((questionIndex: number, choiceIndex: number) => {
     setQuestions(prev => prev.map((q, i) => 
       i === questionIndex 
-        ? { ...q, choices: q.choices.filter((_, cI) => cI !== choiceIndex) }
+        ? { ...q, choices: q.choices.filter((_: string, cI: number) => cI !== choiceIndex) }
         : q
     ))
   }, [])
@@ -284,7 +300,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
       i === questionIndex 
         ? { 
             ...q, 
-            choices: q.choices.map((c, cI) => 
+            choices: q.choices.map((c: string, cI: number) => 
               cI === choiceIndex ? newChoice : c
             ) 
           }
@@ -292,11 +308,11 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
     ))
   }, [])
 
-  const validateQuestions = useCallback((questionsToValidate: AssessmentQuestion[]) => {
+  const validateQuestions = useCallback((questionsToValidate: SurveyQuestion[]) => {
     return questionsToValidate.every(q => 
       q.question.trim() !== "" && 
       q.choices.length >= 2 &&
-      q.choices.every(c => c.trim() !== "")
+      q.choices.every((c: string) => c.trim() !== "")
     )
   }, [])
 
@@ -330,14 +346,14 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
       surveyQuestions: questions
     };
     
-    createSessionAssessment(surveyData, {
+    createSurvey(surveyData, {
       onSuccess: () => {
         setIsCreating(false)
         resetForm()
         refetchSurveys()
       }
     });
-  }, [questions, createSessionAssessment, validateQuestions, validateSurveyDetails, surveyName, surveyDescription, resetForm, refetchSurveys])
+  }, [questions, createSurvey, validateQuestions, validateSurveyDetails, surveyName, surveyDescription, resetForm, refetchSurveys])
 
   const handleEditSurvey = useCallback((surveyId: string) => {
     // Set the editing state and load survey data
@@ -345,54 +361,66 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
     setIsCreating(false)
     setIsViewing(false)
     setCurrentSurveyId(surveyId)
-    
-    // Load the actual survey data
-    const survey = surveys.find(s => s.id === surveyId)
-    if (survey) {
-      setSurveyName(survey.name || "")
-      setSurveyDescription(survey.description || "")
-      
-      // In a real implementation, we would fetch the actual questions
-      // For now, we'll use the same placeholder data
-      setQuestions([{ question: "Sample question?", choices: ["Option A", "Option B", "Option C"] }])
-    }
-  }, [surveys])
+  }, [])
 
   const handleViewSurvey = useCallback((surveyId: string) => {
-    // Instead of navigating, set the viewing state
+    // Set the viewing state
     setIsViewing(true)
     setIsCreating(false)
     setIsEditing(null)
-    // Set the current survey ID and load survey data
     setCurrentSurveyId(surveyId)
-    // We would fetch survey details/questions here in a real implementation
-    // For now just set placeholder data
-    setSurveyName(surveys.find(s => s.id === surveyId)?.name || "")
-    setSurveyDescription(surveys.find(s => s.id === surveyId)?.description || "")
-    setQuestions([{ question: "Sample question?", choices: ["Option A", "Option B", "Option C"] }])
-  }, [surveys])
+  }, [])
+
+  // Effect to load survey details when currentSurveyId changes
+  const loadSurveyData = useCallback(() => {
+    if (surveyDetail) {
+      setSurveyName(surveyDetail.name || "")
+      setSurveyDescription(surveyDetail.description || "")
+      
+      // Convert survey entries to questions format for editing
+      if (surveyDetail.surveyEntries && surveyDetail.surveyEntries.length > 0) {
+        const loadedQuestions = surveyDetail.surveyEntries.map((entry: SurveyEntry) => ({
+          question: entry.question,
+          choices: entry.choices
+        }))
+        setQuestions(loadedQuestions)
+      } else {
+        // Default question if no entries
+        setQuestions([{ question: "", choices: ["", ""] }])
+      }
+    }
+  }, [surveyDetail])
+
+  // Load survey data when survey detail is available
+  useEffect(() => {
+    if (currentSurveyId && (isEditing || isViewing)) {
+      loadSurveyData()
+    }
+  }, [currentSurveyId, isEditing, isViewing, loadSurveyData])
 
   const handleDeleteSurvey = useCallback((surveyId: string) => {
     if (!surveyId) return
     
-    if (confirm("Are you sure you want to delete this survey?")) {
-      deletePreTrainingAssessment(surveyId, {
-        onSuccess: () => {
-          refetchSurveys()
-          toast.success("Survey deleted successfully")
-        }
-      })
+    const survey = surveys.find(s => s.id === surveyId)
+    if (survey) {
+      setDeleteDialog({ isOpen: true, survey })
     }
-  }, [deletePreTrainingAssessment, refetchSurveys])
+  }, [surveys])
+
+  const handleDeleteConfirm = useCallback(() => {
+    if (!deleteDialog.survey) return
+
+    deleteSurvey(deleteDialog.survey.id, {
+      onSuccess: () => {
+        setDeleteDialog({ isOpen: false, survey: null })
+        refetchSurveys()
+      }
+    })
+  }, [deleteDialog.survey, deleteSurvey, refetchSurveys])
 
   const handleEditSubmit = useCallback(() => {
     // Validate form before submission
     if (!validateSurveyDetails()) {
-      return
-    }
-    
-    if (!validateQuestions(questions)) {
-      toast.error("Please complete all questions with at least 2 choices each")
       return
     }
 
@@ -401,23 +429,21 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
       return
     }
 
-    // Submit the survey with the updated data structure
-    const surveyData = {
-      id: currentSurveyId,
+    // Update only survey name and description using the PUT endpoint
+    const surveyUpdateData = {
       name: surveyName,
-      description: surveyDescription,
-      surveyQuestions: questions
+      description: surveyDescription
     };
     
-    updateSessionAssessment(surveyData, {
+    updateSurvey({ surveyId: currentSurveyId, data: surveyUpdateData }, {
       onSuccess: () => {
         setIsEditing(null)
         resetForm()
         refetchSurveys()
-        toast.success("Survey updated successfully")
+        refetchSurveyDetails()
       }
     });
-  }, [currentSurveyId, questions, updateSessionAssessment, validateQuestions, validateSurveyDetails, surveyName, surveyDescription, resetForm, refetchSurveys])
+  }, [currentSurveyId, updateSurvey, validateSurveyDetails, surveyName, surveyDescription, resetForm, refetchSurveys, refetchSurveyDetails])
 
   if (isLoadingSurveys) {
     return <Loading />
@@ -442,6 +468,11 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
         </div>
       </div>
     )
+  }
+
+  // Show loading when fetching survey details for edit/view
+  if ((isEditing || isViewing) && isLoadingSurveyDetails) {
+    return <Loading />
   }
 
   // If we're in creation mode, show the create form
@@ -531,7 +562,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                       <div>
                         <label className="block text-sm font-medium mb-2">Answer Choices</label>
                         <div className="space-y-3">
-                          {q.choices.map((choice, choiceIndex) => (
+                          {q.choices.map((choice: string, choiceIndex: number) => (
                             <div key={choiceIndex} className="flex items-center gap-2">
                               <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium shrink-0">
                                 {String.fromCharCode(65 + choiceIndex)}
@@ -590,9 +621,9 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                   <Button 
                     onClick={handleCreateSubmit} 
                     className="bg-blue-600 text-white hover:bg-blue-700"
-                    disabled={isCreatingAssessment}
+                    disabled={isCreatingSurvey}
                   >
-                    {isCreatingAssessment ? "Creating..." : "Save Survey"}
+                    {isCreatingSurvey ? "Creating..." : "Save Survey"}
                   </Button>
                 </div>
               </div>
@@ -624,7 +655,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                       {q.question || "Your question will appear here"}
                     </h3>
                     <div className="space-y-3 pl-9">
-                      {q.choices.map((choice, choiceIdx) => (
+                      {q.choices.map((choice: string, choiceIdx: number) => (
                         <div key={choiceIdx} className="flex items-center gap-2">
                           <div className="w-5 h-5 rounded-full border flex items-center justify-center text-xs">
                             {String.fromCharCode(65 + choiceIdx)}
@@ -657,7 +688,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
           <div>
             <h2 className="text-2xl font-bold">View Survey</h2>
             <p className="text-gray-600 mt-1">
-              {surveyName}
+              {surveyDetail?.name || "Loading..."}
             </p>
           </div>
           
@@ -678,107 +709,50 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Left Column: Survey Details */}
-          <div className="space-y-6">
-            <Card className="p-6">
-              <div className="mb-4">
-                <h3 className="text-xl font-semibold">Survey Details</h3>
-              </div>
-              <div className="space-y-6">
-                {/* Survey Name & Description */}
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="surveyName">Survey Name</Label>
-                    <div className="mt-1 p-2 bg-gray-50 rounded-md border">
-                      {surveyName}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="surveyDescription">Description</Label>
-                    <div className="mt-1 p-2 bg-gray-50 rounded-md border min-h-[80px]">
-                      {surveyDescription}
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Questions Section */}
-                <div className="pt-4 border-t border-gray-100">
-                  <h4 className="font-medium mb-4">Survey Questions</h4>
-                  
-                  {questions.map((q, questionIndex) => (
-                    <div key={questionIndex} className="space-y-4 mb-8">
-                      <div className="mb-4">
-                        <div className="flex justify-between">
-                          <label className="block text-sm font-medium mb-1">
-                            Question {questionIndex + 1}
-                          </label>
-                        </div>
-                        <div className="p-2 bg-gray-50 rounded-md border">
-                          {q.question}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">Answer Choices</label>
-                        <div className="space-y-3">
-                          {q.choices.map((choice, choiceIndex) => (
-                            <div key={choiceIndex} className="flex items-center gap-2">
-                              <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium shrink-0">
-                                {String.fromCharCode(65 + choiceIndex)}
-                              </div>
-                              <div className="flex-1 p-2 bg-gray-50 rounded-md border">
-                                {choice}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+        <div className="grid grid-cols-1 gap-8">
+          {/* Survey Details */}
+          <Card className="p-6">
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold">Survey Information</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <Label>Survey Name</Label>
+                <div className="mt-1 p-3 bg-gray-50 rounded-md border">
+                  {surveyDetail?.name || "Loading..."}
                 </div>
               </div>
-            </Card>
-          </div>
-
-          {/* Right Column: Preview */}
-          <div>
-            <Card className="p-6">
-              <div className="mb-4">
-                <h3 className="text-xl font-semibold">Survey Preview</h3>
-              </div>
-              <div className="space-y-6">
-                {/* Survey Details Preview */}
-                <div className="bg-gray-50 p-4 rounded-lg border mb-6">
-                  <h4 className="font-medium mb-2">{surveyName}</h4>
-                  <p className="text-sm text-gray-600">{surveyDescription}</p>
+              
+              <div>
+                <Label>Description</Label>
+                <div className="mt-1 p-3 bg-gray-50 rounded-md border min-h-[60px]">
+                  {surveyDetail?.description || "Loading..."}
                 </div>
-                
-                {/* Questions Preview */}
-                {questions.map((q, questionIndex) => (
-                  <Card key={questionIndex} className="bg-gray-50 border p-6">
-                    <h3 className="text-lg font-medium mb-4">
-                      <span className="inline-flex items-center justify-center w-7 h-7 bg-blue-100 text-blue-600 rounded-full mr-2 text-sm">
-                        {questionIndex + 1}
-                      </span>
-                      {q.question}
-                    </h3>
-                    <div className="space-y-3 pl-9">
-                      {q.choices.map((choice, choiceIdx) => (
-                        <div key={choiceIdx} className="flex items-center gap-2">
-                          <div className="w-5 h-5 rounded-full border flex items-center justify-center text-xs">
-                            {String.fromCharCode(65 + choiceIdx)}
-                          </div>
-                          <span>{choice}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                ))}
               </div>
-            </Card>
-          </div>
+            </div>
+          </Card>
+          
+          {/* Survey Questions */}
+          <Card className="p-6">
+            <div className="mb-6">
+              <h3 className="text-xl font-semibold">Survey Questions</h3>
+              <p className="text-gray-600 text-sm mt-1">
+                You can edit individual questions by clicking the edit button on each question.
+              </p>
+            </div>
+            
+            {surveyDetail?.surveyEntries ? (
+              <SurveyQuestionManager
+                surveyEntries={surveyDetail.surveyEntries}
+                surveyId={currentSurveyId}
+                onRefresh={refetchSurveyDetails}
+              />
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <p>Loading survey questions...</p>
+              </div>
+            )}
+          </Card>
         </div>
       </div>
     )
@@ -871,7 +845,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                       <div>
                         <label className="block text-sm font-medium mb-2">Answer Choices</label>
                         <div className="space-y-3">
-                          {q.choices.map((choice, choiceIndex) => (
+                          {q.choices.map((choice: string, choiceIndex: number) => (
                             <div key={choiceIndex} className="flex items-center gap-2">
                               <div className="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center text-xs font-medium shrink-0">
                                 {String.fromCharCode(65 + choiceIndex)}
@@ -931,9 +905,9 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                   <Button 
                     onClick={handleEditSubmit} 
                     className="bg-blue-600 text-white hover:bg-blue-700"
-                    disabled={isUpdatingAssessment}
+                    disabled={isUpdatingSurvey}
                   >
-                    {isUpdatingAssessment ? "Updating..." : "Update Survey"}
+                    {isUpdatingSurvey ? "Updating..." : "Update Survey"}
                   </Button>
                 </div>
               </div>
@@ -965,7 +939,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
                       {q.question || "Your question will appear here"}
                     </h3>
                     <div className="space-y-3 pl-9">
-                      {q.choices.map((choice, choiceIdx) => (
+                      {q.choices.map((choice: string, choiceIdx: number) => (
                         <div key={choiceIdx} className="flex items-center gap-2">
                           <div className="w-5 h-5 rounded-full border flex items-center justify-center text-xs">
                             {String.fromCharCode(65 + choiceIdx)}
@@ -1013,7 +987,7 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
       {/* Survey List */}
       <div className="space-y-4">
         {hasExistingSurveys ? (
-          surveys.map(survey => (
+          surveys.map((survey: Survey) => (
             <SurveyCard
               key={survey.id}
               survey={survey}
@@ -1037,6 +1011,14 @@ export function SurveyComponent({ trainingId }: SurveyComponentProps) {
           </Card>
         )}
       </div>
+
+      <SurveyDeleteDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, survey: null })}
+        onConfirm={handleDeleteConfirm}
+        surveyName={deleteDialog.survey?.name || ""}
+        isDeleting={isDeletingSurvey}
+      />
     </div>
   )
 }

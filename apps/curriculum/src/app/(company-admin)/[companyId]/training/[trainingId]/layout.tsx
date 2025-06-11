@@ -46,13 +46,19 @@ export default function TrainingLayout({
     if (params.formId) {
       routePattern = routePattern.replace(params.formId as string, '[formId]');
     }
+
+    if (params.cohortId) {
+      routePattern = routePattern.replace(params.cohortId as string, '[cohortId]');
+    }
     
     const specialRoutes = [
       '/[companyId]/training/[trainingId]/evaluation/create',
       '/[companyId]/training/[trainingId]/evaluation/builder',
       '/[companyId]/training/[trainingId]/evaluation/[formId]',
       '/[companyId]/training/[trainingId]/evaluation/builder/[evaluationId]/question/[questionId]',
-      '/[companyId]/training/[trainingId]/sessions/add'
+      '/[companyId]/training/[trainingId]/sessions/add',
+      // '/[companyId]/training/[trainingId]/cohorts/[cohortId]'
+
     ];
     
     return specialRoutes.some(route => routePattern === route);

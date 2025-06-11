@@ -19,7 +19,7 @@ interface ModuleInformationData {
   inclusionStrategy: string
   teachingStrategy: string
   duration: number
-  durationType: 'DAYS' | 'WEEKS' | 'MONTHS'
+  durationType: 'DAYS' | 'WEEKS' | 'MONTHS' | 'HOURS' | 'MINUTES'
 }
 
 interface ModuleProfile {
@@ -43,7 +43,7 @@ interface ModuleProfile {
   inclusionStrategy: string
   teachingStrategy: string
   duration: number
-  durationType: 'DAYS' | 'WEEKS' | 'MONTHS'
+  durationType: 'DAYS' | 'WEEKS' | 'MONTHS' | 'HOURS' | 'MINUTES'
 }
 
 interface ModuleResponse {

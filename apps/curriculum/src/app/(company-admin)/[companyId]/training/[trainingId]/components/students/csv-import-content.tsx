@@ -11,6 +11,7 @@ import { CSVUploadSection } from "./csv-upload-section"
 import { CSVDataTable } from "./csv-data-table"
 import { CSVFileInfo } from "./csv-file-info"
 import { CSVErrorSummary } from "./csv-error-summary"
+import { CreateStudentByNameData } from "@/lib/hooks/useStudents"
 
 interface CSVStudentData {
   firstName: string
@@ -20,26 +21,23 @@ interface CSVStudentData {
   contactPhone: string
   dateOfBirth: string
   gender?: string
-  countryId: string
-  regionId: string
-  zoneId: string
-  cityId: string
+  countryName: string
+  regionName: string
+  zoneName: string
+  cityName: string
   woreda: string
   houseNumber: string
-  languageId: string
-  academicLevelId: string
+  languageName: string
+  academicLevelName: string
   fieldOfStudy: string
   hasSmartphone: string
-  smartphoneOwner: string
   hasTrainingExperience: string
   trainingExperienceDescription: string
   emergencyContactName: string
   emergencyContactPhone: string
   emergencyContactRelationship: string
-  hasDisability?: string
-  belongsToMarginalizedGroup?: string
-  disabilityIds: string
-  marginalizedGroupIds: string
+  disabilityNames: string
+  marginalizedGroupNames: string
   rowIndex: number
   errors?: Record<string, string>
 }
@@ -96,7 +94,7 @@ interface MarginalizedGroup {
 }
 
 interface CSVImportContentProps {
-  onImport: (students: StudentFormValues[]) => Promise<void>
+  onImport: (students: CreateStudentByNameData[]) => Promise<void>
   isSubmitting: boolean
   languages: Language[]
   countries: Country[]
@@ -133,15 +131,38 @@ export function CSVImportContent({
     if (!row.contactPhone?.trim()) errors.contactPhone = "Contact phone is required"
     if (!row.dateOfBirth?.trim()) errors.dateOfBirth = "Date of birth is required"
     if (!row.gender?.trim()) errors.gender = "Gender is required"
+    if (!row.countryName?.trim()) errors.countryName = "Country is required"
+    if (!row.regionName?.trim()) errors.regionName = "Region is required"
+    if (!row.zoneName?.trim()) errors.zoneName = "Zone is required"
+    if (!row.woreda?.trim()) errors.woreda = "Woreda is required"
+    if (!row.houseNumber?.trim()) errors.houseNumber = "House number is required"
+    if (!row.languageName?.trim()) errors.languageName = "Language is required"
+    if (!row.academicLevelName?.trim()) errors.academicLevelName = "Academic level is required"
+    if (!row.fieldOfStudy?.trim()) errors.fieldOfStudy = "Field of study is required"
+    if (!row.hasSmartphone?.trim()) errors.hasSmartphone = "Has smartphone is required"
+    if (!row.hasTrainingExperience?.trim()) errors.hasTrainingExperience = "Has training experience is required"
+    if (!row.emergencyContactName?.trim()) errors.emergencyContactName = "Emergency contact name is required"
+    if (!row.emergencyContactPhone?.trim()) errors.emergencyContactPhone = "Emergency contact phone is required"
+    if (!row.emergencyContactRelationship?.trim()) errors.emergencyContactRelationship = "Emergency contact relationship is required"
     
     // Email validation
     if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
       errors.email = "Invalid email format"
     }
     
-    // Date validation
-    if (row.dateOfBirth && isNaN(Date.parse(row.dateOfBirth))) {
-      errors.dateOfBirth = "Invalid date format (use YYYY-MM-DD)"
+    // Date validation - strict YYYY-MM-DD format
+    if (row.dateOfBirth) {
+      const datePattern = /^\d{4}-\d{2}-\d{2}$/
+      if (!datePattern.test(row.dateOfBirth)) {
+        errors.dateOfBirth = "Invalid date format (must be YYYY-MM-DD)"
+      } else {
+        // Check if it's a valid date
+        const date = new Date(row.dateOfBirth)
+        const [year, month, day] = row.dateOfBirth.split('-').map(Number)
+        if (date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
+          errors.dateOfBirth = "Invalid date (must be a real date in YYYY-MM-DD format)"
+        }
+      }
     }
     
     // Gender validation
@@ -159,56 +180,62 @@ export function CSVImportContent({
     }
 
     // Validate IDs against base data and hierarchical relationships
-    if (row.languageId && !languages.find(l => l.id === row.languageId)) {
-      errors.languageId = "Invalid language ID"
+    if (row.languageName && !languages.find(l => l.name === row.languageName)) {
+      errors.languageName = "Invalid language name"
     }
     
-    if (row.academicLevelId && !academicLevels.find(a => a.id === row.academicLevelId)) {
-      errors.academicLevelId = "Invalid academic level ID"
+    if (row.academicLevelName && !academicLevels.find(a => a.name === row.academicLevelName)) {
+      errors.academicLevelName = "Invalid academic level name"
     }
     
     // Cascading location validation - exactly like venue form pattern
-    const selectedCountry = row.countryId ? countries.find(c => c.id === row.countryId) : null;
-    if (row.countryId && !selectedCountry) {
-      errors.countryId = "Invalid country ID"
+    const selectedCountry = row.countryName ? countries.find(c => c.name === row.countryName) : null;
+    if (row.countryName && !selectedCountry) {
+      errors.countryName = "Invalid country name"
     }
     
-    const selectedRegion = row.regionId ? regions.find(r => r.id === row.regionId) : null;
-    if (row.regionId && !selectedRegion) {
-      errors.regionId = "Invalid region ID"
-    } else if (selectedRegion && selectedCountry && selectedRegion.country.id !== selectedCountry.id) {
-      errors.regionId = "Region does not belong to the selected country"
+    const selectedRegion = row.regionName ? regions.find(r => r.name === row.regionName) : null;
+    if (row.regionName && !selectedRegion) {
+      errors.regionName = "Invalid region name"
+    } else if (selectedRegion && selectedCountry && selectedRegion.country.name !== selectedCountry.name) {
+      errors.regionName = "Region does not belong to the selected country"
     }
     
-    const selectedZone = row.zoneId ? zones.find(z => z.id === row.zoneId) : null;
-    if (row.zoneId && !selectedZone) {
-      errors.zoneId = "Invalid zone ID"
-    } else if (selectedZone && selectedRegion && selectedZone.region.id !== selectedRegion.id) {
-      errors.zoneId = "Zone does not belong to the selected region"
+    const selectedZone = row.zoneName ? zones.find(z => z.name === row.zoneName) : null;
+    if (row.zoneName && !selectedZone) {
+      errors.zoneName = "Invalid zone name"
+    } else if (selectedZone && selectedRegion && selectedZone.region.name !== selectedRegion.name) {
+      errors.zoneName = "Zone does not belong to the selected region"
     }
     
-    const selectedCity = row.cityId ? cities.find(c => c.id === row.cityId) : null;
-    if (row.cityId && !selectedCity) {
-      errors.cityId = "Invalid city ID"
-    } else if (selectedCity && selectedZone && selectedCity.zone && selectedCity.zone.id !== selectedZone.id) {
-      errors.cityId = "City does not belong to the selected zone"
-    }
-
-    // Validate disability IDs
-    if (row.disabilityIds) {
-      const disabilityIdArray = row.disabilityIds.split(',').map(id => id.trim()).filter(Boolean)
-      const invalidDisabilityIds = disabilityIdArray.filter(id => !disabilities.find(d => d.id === id))
-      if (invalidDisabilityIds.length > 0) {
-        errors.disabilityIds = `Invalid disability IDs: ${invalidDisabilityIds.join(', ')}`
+    if (row.cityName) {
+      const selectedCity = cities.find(c => c.name === row.cityName);
+      if (!selectedCity) {
+        errors.cityName = "Invalid city name"
+      } else if (selectedZone && selectedCity.zone && selectedCity.zone.name !== selectedZone.name) {
+        errors.cityName = "City does not belong to the selected zone"
       }
     }
 
-    // Validate marginalized group IDs
-    if (row.marginalizedGroupIds) {
-      const groupIdArray = row.marginalizedGroupIds.split(',').map(id => id.trim()).filter(Boolean)
-      const invalidGroupIds = groupIdArray.filter(id => !marginalizedGroups.find(g => g.id === id))
-      if (invalidGroupIds.length > 0) {
-        errors.marginalizedGroupIds = `Invalid marginalized group IDs: ${invalidGroupIds.join(', ')}`
+    // Validate disability names (only if provided)
+    if (row.disabilityNames && row.disabilityNames.trim()) {
+      const disabilityNameArray = row.disabilityNames.split(',').map(name => name.trim()).filter(Boolean)
+      if (disabilityNameArray.length > 0) {
+        const invalidDisabilityNames = disabilityNameArray.filter(name => !disabilities.find(d => d.name === name))
+        if (invalidDisabilityNames.length > 0) {
+          errors.disabilityNames = `Invalid disability names: ${invalidDisabilityNames.join(', ')}`
+        }
+      }
+    }
+
+    // Validate marginalized group names (only if provided)
+    if (row.marginalizedGroupNames && row.marginalizedGroupNames.trim()) {
+      const groupNameArray = row.marginalizedGroupNames.split(',').map(name => name.trim()).filter(Boolean)
+      if (groupNameArray.length > 0) {
+        const invalidGroupNames = groupNameArray.filter(name => !marginalizedGroups.find(g => g.name === name))
+        if (invalidGroupNames.length > 0) {
+          errors.marginalizedGroupNames = `Invalid marginalized group names: ${invalidGroupNames.join(', ')}`
+        }
       }
     }
 
@@ -220,26 +247,23 @@ export function CSVImportContent({
       contactPhone: row.contactPhone || "",
       dateOfBirth: row.dateOfBirth || "",
       gender: (row.gender === "MALE" || row.gender === "FEMALE") ? row.gender : undefined,
-      countryId: row.countryId || "",
-      regionId: row.regionId || "",
-      zoneId: row.zoneId || "",
-      cityId: row.cityId || "",
+      countryName: row.countryName || "",
+      regionName: row.regionName || "",
+      zoneName: row.zoneName || "",
+      cityName: row.cityName || "",
       woreda: row.woreda || "",
       houseNumber: row.houseNumber || "",
-      languageId: row.languageId || "",
-      academicLevelId: row.academicLevelId || "",
+      languageName: row.languageName || "",
+      academicLevelName: row.academicLevelName || "",
       fieldOfStudy: row.fieldOfStudy || "",
       hasSmartphone: row.hasSmartphone || "",
-      smartphoneOwner: row.smartphoneOwner || "",
       hasTrainingExperience: row.hasTrainingExperience || "",
       trainingExperienceDescription: row.trainingExperienceDescription || "",
       emergencyContactName: row.emergencyContactName || "",
       emergencyContactPhone: row.emergencyContactPhone || "",
       emergencyContactRelationship: row.emergencyContactRelationship || "",
-      hasDisability: row.hasDisability || "",
-      belongsToMarginalizedGroup: row.belongsToMarginalizedGroup || "",
-      disabilityIds: row.disabilityIds || "",
-      marginalizedGroupIds: row.marginalizedGroupIds || "",
+      disabilityNames: row.disabilityNames || "",
+      marginalizedGroupNames: row.marginalizedGroupNames || "",
       rowIndex: index,
       errors: Object.keys(errors).length > 0 ? errors : undefined
     }
@@ -263,35 +287,32 @@ export function CSVImportContent({
     })
   }, [languages, academicLevels, zones, cities, countries, regions, disabilities, marginalizedGroups])
 
-  const convertToStudentFormValues = (csvRow: CSVStudentData): StudentFormValues => {
+  const convertToStudentFormValues = (csvRow: CSVStudentData): CreateStudentByNameData => {
     return {
       firstName: csvRow.firstName,
-      middleName: csvRow.middleName,
+      middleName: csvRow.middleName && csvRow.middleName.trim() ? csvRow.middleName.trim() : undefined,
       lastName: csvRow.lastName,
       email: csvRow.email,
       contactPhone: csvRow.contactPhone,
-      dateOfBirth: new Date(csvRow.dateOfBirth),
-      gender: (csvRow.gender?.toUpperCase() === "MALE" || csvRow.gender?.toUpperCase() === "FEMALE") ? csvRow.gender?.toUpperCase() as "MALE" | "FEMALE" : undefined,
-      countryId: csvRow.countryId,
-      regionId: csvRow.regionId,
-      zoneId: csvRow.zoneId,
-      cityId: csvRow.cityId,
+      dateOfBirth: csvRow.dateOfBirth,
+      gender: (csvRow.gender === "MALE" || csvRow.gender === "FEMALE") ? csvRow.gender : undefined,
+      countryName: csvRow.countryName,
+      regionName: csvRow.regionName,
+      zoneName: csvRow.zoneName,
+      cityName: csvRow.cityName && csvRow.cityName.trim() ? csvRow.cityName.trim() : undefined,
       woreda: csvRow.woreda,
       houseNumber: csvRow.houseNumber,
-      languageId: csvRow.languageId,
-      academicLevelId: csvRow.academicLevelId,
+      languageName: csvRow.languageName,
+      academicLevelName: csvRow.academicLevelName,
       fieldOfStudy: csvRow.fieldOfStudy,
-      hasSmartphone: csvRow.hasSmartphone?.toUpperCase() === "TRUE",
-      smartphoneOwner: csvRow.smartphoneOwner,
-      hasTrainingExperience: csvRow.hasTrainingExperience?.toUpperCase() === "TRUE",
-      trainingExperienceDescription: csvRow.trainingExperienceDescription,
+      hasSmartphone: csvRow.hasSmartphone === "TRUE",
+      hasTrainingExperience: csvRow.hasTrainingExperience === "TRUE",
+      trainingExperienceDescription: csvRow.trainingExperienceDescription && csvRow.trainingExperienceDescription.trim() ? csvRow.trainingExperienceDescription.trim() : undefined,
       emergencyContactName: csvRow.emergencyContactName,
       emergencyContactPhone: csvRow.emergencyContactPhone,
       emergencyContactRelationship: csvRow.emergencyContactRelationship,
-      hasDisability: csvRow.disabilityIds ? true : null,
-      disabilityIds: csvRow.disabilityIds ? csvRow.disabilityIds.split(',').map(id => id.trim()).filter(Boolean) : [],
-      belongsToMarginalizedGroup: csvRow.marginalizedGroupIds ? true : null,
-      marginalizedGroupIds: csvRow.marginalizedGroupIds ? csvRow.marginalizedGroupIds.split(',').map(id => id.trim()).filter(Boolean) : [],
+      disabilityNames: csvRow.disabilityNames && csvRow.disabilityNames.trim() ? csvRow.disabilityNames.split(',').map(name => name.trim()).filter(Boolean) : undefined,
+      marginalizedGroupNames: csvRow.marginalizedGroupNames && csvRow.marginalizedGroupNames.trim() ? csvRow.marginalizedGroupNames.split(',').map(name => name.trim()).filter(Boolean) : undefined,
     }
   }
 
@@ -317,26 +338,23 @@ export function CSVImportContent({
         contactPhone: row.contactPhone,
         dateOfBirth: row.dateOfBirth,
         gender: row.gender || "",
-        countryId: row.countryId,
-        regionId: row.regionId,
-        zoneId: row.zoneId,
-        cityId: row.cityId,
+        countryName: row.countryName,
+        regionName: row.regionName,
+        zoneName: row.zoneName,
+        cityName: row.cityName,
         woreda: row.woreda,
         houseNumber: row.houseNumber,
-        languageId: row.languageId,
-        academicLevelId: row.academicLevelId,
+        languageName: row.languageName,
+        academicLevelName: row.academicLevelName,
         fieldOfStudy: row.fieldOfStudy,
         hasSmartphone: row.hasSmartphone,
-        smartphoneOwner: row.smartphoneOwner,
         hasTrainingExperience: row.hasTrainingExperience,
         trainingExperienceDescription: row.trainingExperienceDescription,
         emergencyContactName: row.emergencyContactName,
         emergencyContactPhone: row.emergencyContactPhone,
         emergencyContactRelationship: row.emergencyContactRelationship,
-        hasDisability: row.hasDisability || "",
-        belongsToMarginalizedGroup: row.belongsToMarginalizedGroup || "",
-        disabilityIds: row.disabilityIds,
-        marginalizedGroupIds: row.marginalizedGroupIds
+        disabilityNames: row.disabilityNames,
+        marginalizedGroupNames: row.marginalizedGroupNames
       }
       
       const revalidated = validateCSVRow(mockRowData, row.rowIndex)

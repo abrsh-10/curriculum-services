@@ -113,6 +113,33 @@ export interface CreateStudentData {
   marginalizedGroupIds?: string[]
 }
 
+export interface CreateStudentByNameData {
+  firstName: string
+  middleName?: string
+  lastName: string
+  email: string
+  contactPhone: string
+  dateOfBirth: string
+  gender?: "MALE" | "FEMALE" 
+  countryName: string
+  regionName: string
+  zoneName: string
+  cityName?: string
+  woreda: string
+  houseNumber: string
+  languageName: string
+  academicLevelName: string
+  fieldOfStudy: string
+  hasSmartphone: boolean
+  hasTrainingExperience: boolean
+  trainingExperienceDescription?: string
+  emergencyContactName: string
+  emergencyContactPhone: string
+  emergencyContactRelationship: string
+  disabilityNames?: string[]
+  marginalizedGroupNames?: string[]
+}
+
 interface StudentsResponse {
   code: string
   trainees: Student[]
@@ -404,6 +431,100 @@ export function useBulkImportStudents() {
       toast.error(error.response?.data?.message || 'Failed to import students')
     }
   })
+}
+
+export function useBulkImportStudentsByName() {
+  // Always fetch countries first
+  const { data: countries } = useBaseData('country', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  // Fetch all regions, zones, and cities without pagination for client-side filtering
+  const { data: regions } = useBaseData('region', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: zones } = useBaseData('zone', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: cities } = useBaseData('city', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: languages } = useBaseData('language', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: academicLevels } = useBaseData('academic-level', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: disabilities } = useBaseData('disability', {
+    enabled: true,
+    disablePagination: true
+  })
+  
+  const { data: marginalizedGroups } = useBaseData('marginalized-group', {
+    enabled: true,
+    disablePagination: true
+  })
+
+  const queryClient = useQueryClient()
+
+  const bulkImportMutation = useMutation({
+    mutationFn: async ({ 
+      trainingId, 
+      studentsData 
+    }: { 
+      trainingId: string, 
+      studentsData: CreateStudentByNameData[] 
+    }) => {
+      const token = getCookie('token')
+      
+      // Process phone numbers for all students
+      const processedData = studentsData.map(studentData => ({
+        ...studentData,
+        contactPhone: addPhonePrefix(studentData.contactPhone),
+        emergencyContactPhone: addPhonePrefix(studentData.emergencyContactPhone)
+      }))
+      
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API}/trainee/bulk-name/training/${trainingId}`,
+        processedData,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return { responseData: response.data, trainingId }
+    },
+    onSuccess: ({ trainingId }) => {
+      toast.success('Students imported successfully')
+      queryClient.invalidateQueries({ queryKey: ['students', trainingId] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to import students')
+    }
+  })
+
+  return {
+    countries,
+    regions,
+    zones,
+    cities,
+    languages,
+    academicLevels,
+    disabilities,
+    marginalizedGroups,
+    bulkImportByName: bulkImportMutation.mutate,
+    isLoading: bulkImportMutation.isPending
+  }
 }
 
 

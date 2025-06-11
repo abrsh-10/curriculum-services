@@ -1,5 +1,6 @@
 "use client"
 
+import { memo, useCallback } from "react"
 import { Session } from "@/lib/hooks/useSession"
 import { Calendar } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -15,7 +16,7 @@ interface SessionTabsProps {
   trainingId: string
 }
 
-export function SessionTabs({ 
+function SessionTabsComponent({ 
   sessions, 
   activeSessionId, 
   setActiveSessionId,
@@ -28,6 +29,24 @@ export function SessionTabs({
   // Find active session
   const activeSession = sessions.find(session => session.id === activeSessionId) || sessions[0]
   
+  // Define callbacks before any early returns
+  const handleTabClick = useCallback((sessionId: string) => {
+    setActiveSessionId(sessionId)
+  }, [setActiveSessionId])
+
+  const handleSessionDetailsClick = useCallback(() => {
+    // Sessions only exist within cohorts
+    const cohortId = activeSession?.cohort?.id
+    
+    if (!cohortId) {
+      console.error('Session must belong to a cohort to view details')
+      return
+    }
+    
+    // Route to cohort-based session detail page
+    router.push(`/${params.companyId}/training/${trainingId}/cohorts/${cohortId}/sessions/${activeSession.id}`)
+  }, [activeSession?.cohort?.id, activeSession?.id, params.companyId, router, trainingId])
+
   // Don't render details section if role is loading or no active session exists
   if (isLoading || !activeSession) {
      return null; // Or a loading indicator if preferred
@@ -43,7 +62,7 @@ export function SessionTabs({
             {sessions.map((session) => (
               <button
                 key={session.id}
-                onClick={() => setActiveSessionId(session.id)}
+                onClick={() => handleTabClick(session.id)}
                 className={cn(
                   "py-2 px-3 rounded-md text-sm font-normal transition-colors duration-200 min-w-[110px] text-center",
                   session.id === activeSessionId
@@ -99,7 +118,7 @@ export function SessionTabs({
             <Button
               variant="outline"
               className="text-xs border-[#99948E] text-[#99948E] h-8"
-              onClick={() => router.push(`/${params.companyId}/training/${trainingId}/sessions/${activeSession.id}`)}
+              onClick={handleSessionDetailsClick}
             >
               Session Details
             </Button>
@@ -108,4 +127,7 @@ export function SessionTabs({
       </div>
     </>
   )
-} 
+}
+
+// Memoize the component to prevent unnecessary re-renders
+export const SessionTabs = memo(SessionTabsComponent) 

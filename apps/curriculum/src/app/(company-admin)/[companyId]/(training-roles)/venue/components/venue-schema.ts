@@ -25,7 +25,7 @@ export const venueSchema = z.object({
   name: z.string().min(1, "Venue name is required"),
   location: z.string().min(1, "Location is required"),
   zoneId: z.string().min(1, "Zone is required"),
-  cityId: z.string().min(1, "City is required"),
+  cityId: z.string().optional(),
   woreda: z.string().min(1, "Woreda is required"),
   latitude: z.number().optional(),
   longitude: z.number().optional(),
