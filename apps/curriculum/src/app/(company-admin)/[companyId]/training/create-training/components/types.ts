@@ -14,6 +14,8 @@ export interface StepProps {
     duration?: number;
     durationType?: 'MINUTES' | 'HOURS' | 'DAYS' | 'WEEKS' | 'MONTHS';
     deliveryMethod?: 'BLENDED' | 'OFFLINE' | 'VIRTUAL';
+    productKey?: 'LEYU' | 'OTHER' | null;
+    edgeProduct?: boolean;
     startDate?: string;
     endDate?: string;
     trainingTypeId?: string;

@@ -6,14 +6,8 @@ import { getCookie } from "@curriculum-services/auth"
 
 // Update interface for creating a certificate
 interface CertificateInput {
-  issuingOrganization: string
-  issueDate: string
-  completionDate: string
-  description: string
-  creditHours: number
-  grade: number
-  trainingId: string
-  traineeId: string
+  issueDate: string;
+  traineeIds: string[] // Changed from traineeId to traineeIds to support bulk generation
 }
 
 // Full certificate interface including received data
@@ -55,25 +49,46 @@ export function useSubmitCertificate() {
   return useMutation({
     mutationFn: async (data: CertificateInput) => {
       const token = getCookie('token')
+      
+      // Send all trainee IDs in a single request
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API}/certificate`,
-        data,
+        {
+          issueDate: data.issueDate,
+          traineeIds: data.traineeIds
+        },
         {
           headers: { Authorization: `Bearer ${token}` }
         }
       )
-      return response.data
+      
+      return {
+        success: true,
+        count: data.traineeIds.length,
+        data: response.data
+      }
     },
-    onSuccess: (_, variables) => {
-      toast.success('Certificate saved successfully')
+    onSuccess: (result, variables) => {
+      const count = variables.traineeIds.length
+      toast.success(
+        count === 1 
+          ? 'Certificate generated successfully' 
+          : `${count} certificates generated successfully`
+      )
       // Invalidate certificates query to trigger refetch
       queryClient.invalidateQueries({
-        queryKey: ['certificates', variables.trainingId]
+        queryKey: ['certificates']
+      })
+      // Invalidate students query to refresh certificate URLs in the table
+      queryClient.invalidateQueries({
+        queryKey: ['students']
       })
     },
     onError: (error) => {
       if (axios.isAxiosError(error)) {
-        toast.error(error.response?.data?.message || 'Failed to save certificate')
+        toast.error(error.response?.data?.message || 'Failed to generate certificate(s)')
+      } else {
+        toast.error('Failed to generate certificate(s)')
       }
     }
   })

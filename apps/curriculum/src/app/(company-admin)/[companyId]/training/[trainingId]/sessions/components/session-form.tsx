@@ -105,7 +105,7 @@ interface ModuleWithRelationship extends Module {
   } | null;
 }
 
-export function SessionForm({ trainingId, companyId, cohortId, sessionId, onSuccess, onCancel }: SessionFormProps) {
+export function SessionForm({ trainingId, cohortId, sessionId, onSuccess, onCancel }: SessionFormProps) {
   // Determine if we're editing
   const isEditing = !!sessionId
   

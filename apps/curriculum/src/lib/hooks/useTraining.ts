@@ -28,7 +28,13 @@ export function useTraining(trainingId: string) {
             headers: { Authorization: `Bearer ${token}` }
           }
         );
-        return response.data.training;
+        const training = response.data.training;
+        // Ensure new DTO fields are present for existing trainings
+        return {
+          ...training,
+          productKey: training.productKey ?? null,
+          edgeProduct: training.edgeProduct ?? false,
+        };
       } catch (error: any) {
         console.log("Error fetching training:", error);
         throw new Error(

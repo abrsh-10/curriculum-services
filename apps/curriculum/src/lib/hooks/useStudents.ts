@@ -104,7 +104,7 @@ export interface Student {
   emergencyContactRelationship: string
   disabilities: Disability[]
   marginalizedGroups: any[]
-  // New fields from the provided JSON
+  // New fields after leyu pending trainees
   didSignConsentForm: boolean | null
   consentFormUrl: string | null
   pendingTraineeId: string | null
@@ -112,7 +112,9 @@ export interface Student {
   frontIdUrl: string | null
   backIdUrl: string | null
   signatureUrl: string | null
+  certificateUrl: string | null
   selfRegistered: boolean
+  cohortName:string
 }
 
 export interface CreateStudentData {
@@ -201,6 +203,13 @@ export interface StudentFilters {
   languageIds?: string[]
   academicLevelIds?: string[]
   zoneIds?: string[]
+  // Age filters
+  ageAbove?: number
+  ageBelow?: number
+  // Consent form filter
+  hasConsentForm?: boolean
+  // Cohort filters
+  cohortIds?: string[]
   // Attendance filters
   attendancePercentageAbove?: number
   attendancePercentageBelow?: number
@@ -259,6 +268,24 @@ export function useStudents(
           }
           if (filters.zoneIds && filters.zoneIds.length > 0) {
             filters.zoneIds.forEach(zoneId => params.append('zone-ids', zoneId))
+          }
+          
+          // Age filters
+          if (filters.ageAbove !== undefined) {
+            params.append('age-above', filters.ageAbove.toString())
+          }
+          if (filters.ageBelow !== undefined) {
+            params.append('age-below', filters.ageBelow.toString())
+          }
+          
+          // Consent form filter
+          if (filters.hasConsentForm !== undefined) {
+            params.append('has-consent-form', filters.hasConsentForm.toString())
+          }
+          
+          // Cohort filters
+          if (filters.cohortIds && filters.cohortIds.length > 0) {
+            filters.cohortIds.forEach(cohortId => params.append('cohort-ids', cohortId))
           }
           
           // Attendance filters

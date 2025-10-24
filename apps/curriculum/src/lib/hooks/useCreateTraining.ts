@@ -35,6 +35,9 @@ interface CreateTrainingData {
   }>;
   trainingPurposeIds: string[];
   certificateDescription: string;
+  // New DTo for edge
+  productKey?: 'LEYU' | 'OTHER' | null;
+  edgeProduct?: boolean;
 }
 
 export function useCreateTraining() {
@@ -53,9 +56,15 @@ export function useCreateTraining() {
     mutationFn: async (data: CreateTrainingData) => {
       const token = getCookie('token');
       console.log(data);
+      // Backward-safety: ensure edge DTO fields exist
+      const payload = {
+        ...data,
+        productKey: data.productKey ?? null,
+        edgeProduct: data.edgeProduct ?? false,
+      }
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API}/training`,
-        data,
+        payload,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

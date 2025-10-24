@@ -18,6 +18,7 @@ import { EditProfileModal } from "@/components/modals/edit-profile-modal"
 import { useProfilePicture } from "@/lib/hooks/useProfilePicture"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { getCookie } from "@curriculum-services/auth"
+import { useSyncTraining } from "@/lib/hooks/useSyncTraining"
 
 export default function Topbar() {
   const pathname = usePathname()
@@ -26,7 +27,7 @@ export default function Topbar() {
   
   const [mounted, setMounted] = useState(false)
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
-  const { isIcogAdmin, isCompanyAdmin, role } = useUserRole()
+  const { isIcogAdmin, isCompanyAdmin, role, isProjectManager } = useUserRole()
     
   const decoded = typeof window !== 'undefined' ? decodeJWT(getCookie('token') || null) : null
 
@@ -41,6 +42,7 @@ export default function Topbar() {
   })
 
   const profilePicture = useProfilePicture()
+  const { syncTraining, isLoading: isSyncing } = useSyncTraining()
 
   // Check if current route needs a back button (any route deeper than training)
   const showBackButton = pathname.includes('/training/') && params.companyId
@@ -130,7 +132,8 @@ export default function Topbar() {
                     className="w-5 h-5"
                     onError={(e) => {
                       // Fallback if image doesn't exist
-                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>';
+                      e.currentTarget.src =
+                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>';
                     }}
                   />
                 </button>
@@ -149,6 +152,16 @@ export default function Topbar() {
                 className="bg-[#0B75FF] hover:bg-[#0052CC] text-white lg:px-6 lg:py-5 px-3 py-1 rounded-3xl md:text-sm text-xs"
               >
                 Create Training
+              </Button>
+            )}
+
+            {(isCompanyAdmin || isProjectManager) && (
+              <Button
+                onClick={() => syncTraining()}
+                className="bg-[#0A2342] hover:bg-[#14417b] text-white lg:px-6 lg:py-5 px-3 py-1 rounded-3xl md:text-sm text-xs"
+                disabled={isSyncing}
+              >
+                {isSyncing ? 'Syncing...' : 'Sync Training'}
               </Button>
             )}
 
@@ -188,7 +201,10 @@ export default function Topbar() {
                     />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[300px] p-0 my-5 mx-10" align="start">
+                <PopoverContent
+                  className="w-[300px] p-0 my-5 mx-10"
+                  align="start"
+                >
                   <div className="space-y-3">
                     {/* Profile Header */}
                     <div className="px-6">
@@ -207,13 +223,13 @@ export default function Topbar() {
                             {isIcogAdmin
                               ? "iCog Admin"
                               : isCompanyAdmin
-                                ? `${decoded?.firstName} ${decoded?.lastName}`
-                                : decoded?.email}
+                              ? `${decoded?.firstName} ${decoded?.lastName}`
+                              : decoded?.email}
                           </h3>
                           <p className="text-gray-500 font-medium text-sm break-words">
                             {isIcogAdmin
                               ? "iCog Admin"
-                              : getDisplayRole(role || '')}
+                              : getDisplayRole(role || "")}
                           </p>
                         </div>
                       </div>
@@ -223,7 +239,7 @@ export default function Topbar() {
 
                     {/* Menu Items */}
                     <div className="space-y-1 py-2">
-                      <button 
+                      <button
                         className="w-full font-medium text-sm text-left px-6 py-2.5 text-gray-700 hover:bg-gray-50 transition-colors"
                         onClick={() => setIsEditProfileOpen(true)}
                       >
@@ -245,7 +261,7 @@ export default function Topbar() {
           </div>
         </div>
       </div>
-      
+
       <EditProfileModal
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}

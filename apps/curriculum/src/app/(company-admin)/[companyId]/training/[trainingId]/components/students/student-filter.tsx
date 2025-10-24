@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
-import React, { useState, useMemo, useEffect } from "react"
+import React, { useState, useMemo } from "react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -13,6 +13,9 @@ import Image from "next/image"
 import { useDebounce } from "@/lib/hooks/useDebounce"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 import { StudentFilters } from "@/lib/hooks/useStudents"
+import { useCohorts } from "@/lib/hooks/useCohorts"
+import { getAllLeafCohorts, getCohortHierarchyName } from "@/lib/utils/cohort-utils"
+import { useSingleCascadingLocation } from "@/lib/hooks/useCascadingLocation"
 
 interface Country {
   id: string
@@ -46,28 +49,73 @@ interface AcademicLevel {
   description: string
 }
 
-// Commented out for now - can be enabled later
-// interface Disability {
-//   id: string
-//   name: string
-//   description: string
-// }
-
-// interface MarginalizedGroup {
-//   id: string
-//   name: string
-//   description: string
-// }
+// Reusable numeric range field (hoisted to avoid remounts on re-render)
+function RangeField({
+  label,
+  aboveLabel = "Above",
+  belowLabel = "Below",
+  aboveValue,
+  belowValue,
+  setAbove,
+  setBelow,
+  min = 0,
+  max = 100,
+  placeholderAbove,
+  placeholderBelow
+}: {
+  label: string
+  aboveLabel?: string
+  belowLabel?: string
+  aboveValue?: number
+  belowValue?: number
+  setAbove: (value: number | undefined) => void
+  setBelow: (value: number | undefined) => void
+  min?: number
+  max?: number
+  placeholderAbove?: string
+  placeholderBelow?: string
+}) {
+  return (
+    <div className="space-y-3">
+      <h4 className="text-base font-semibold">{label}</h4>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">{aboveLabel}</Label>
+          <Input
+            type="number"
+            placeholder={placeholderAbove}
+            value={aboveValue ?? ''}
+            onChange={(e) => setAbove(e.target.value ? Number(e.target.value) : undefined)}
+            className="h-10"
+            min={min}
+            max={max}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">{belowLabel}</Label>
+          <Input
+            type="number"
+            placeholder={placeholderBelow}
+            value={belowValue ?? ''}
+            onChange={(e) => setBelow(e.target.value ? Number(e.target.value) : undefined)}
+            className="h-10"
+            min={min}
+            max={max}
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 interface StudentFilterProps {
+  trainingId: string
   countries?: Country[]
   regions?: Region[]
   zones?: Zone[]
   languages?: Language[]
   academicLevels?: AcademicLevel[]
-  // Commented out for now
-  // disabilities?: Disability[]
-  // marginalizedGroups?: MarginalizedGroup[]
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onApply: (filters: StudentFilters) => void
   defaultSelected?: StudentFilters
 }
@@ -77,36 +125,44 @@ const genderOptions = [
   { id: "FEMALE", label: "Female" }
 ]
 
-// Commented out for now
-// const smartphoneOptions = [
-//   { id: "true", label: "Has Smartphone" },
-//   { id: "false", label: "No Smartphone" }
-// ]
-
-// const trainingExperienceOptions = [
-//   { id: "true", label: "Has Training Experience" },
-//   { id: "false", label: "No Training Experience" }
-// ]
 
 export function StudentFilter({
+  trainingId,
   countries = [],
   regions = [],
   zones = [],
   languages = [],
   academicLevels = [],
-  // Commented out for now
-  // disabilities = [],
-  // marginalizedGroups = [],
   onApply,
   defaultSelected = {},
 }: StudentFilterProps) {
   const [open, setOpen] = useState(false)
+
+  
+  // Fetch cohorts for this training
+  const { data: cohortsData } = useCohorts({
+    trainingId,
+    pageSize: 100 // Get all cohorts
+  })
+  
+  // Get leaf cohorts for selection
+  const leafCohorts = cohortsData?.cohorts ? getAllLeafCohorts(cohortsData.cohorts) : []
   
   // Filter states
   const [selectedGenders, setSelectedGenders] = useState<string[]>(defaultSelected.genders || [])
   const [selectedLanguageIds, setSelectedLanguageIds] = useState<string[]>(defaultSelected.languageIds || [])
   const [selectedAcademicLevelIds, setSelectedAcademicLevelIds] = useState<string[]>(defaultSelected.academicLevelIds || [])
   const [selectedZoneIds, setSelectedZoneIds] = useState<string[]>(defaultSelected.zoneIds || [])
+  
+  // Age filter states
+  const [ageAbove, setAgeAbove] = useState<number | undefined>(defaultSelected.ageAbove)
+  const [ageBelow, setAgeBelow] = useState<number | undefined>(defaultSelected.ageBelow)
+  
+  // Consent form filter state
+  const [hasConsentForm, setHasConsentForm] = useState<boolean | undefined>(defaultSelected.hasConsentForm)
+  
+  // Cohort filter states
+  const [selectedCohortIds, setSelectedCohortIds] = useState<string[]>(defaultSelected.cohortIds || [])
   
   // Attendance filter states
   const [attendancePercentageAbove, setAttendancePercentageAbove] = useState<number | undefined>(defaultSelected.attendancePercentageAbove)
@@ -123,16 +179,22 @@ export function StudentFilter({
   const [preAssessmentScoreBelow, setPreAssessmentScoreBelow] = useState<number | undefined>(defaultSelected.preAssessmentScoreBelow)
   const [postAssessmentScoreAbove, setPostAssessmentScoreAbove] = useState<number | undefined>(defaultSelected.postAssessmentScoreAbove)
   const [postAssessmentScoreBelow, setPostAssessmentScoreBelow] = useState<number | undefined>(defaultSelected.postAssessmentScoreBelow)
-  
-  // Commented out for now
-  // const [selectedDisabilityIds, setSelectedDisabilityIds] = useState<string[]>(defaultSelected.disabilityIds || [])
-  // const [selectedMarginalizedGroupIds, setSelectedMarginalizedGroupIds] = useState<string[]>(defaultSelected.marginalizedGroupIds || [])
-  // const [selectedHasSmartphone, setSelectedHasSmartphone] = useState<boolean | undefined>(defaultSelected.hasSmartphone)
-  // const [selectedHasTrainingExperience, setSelectedHasTrainingExperience] = useState<boolean | undefined>(defaultSelected.hasTrainingExperience)
-
+ 
   // Location cascading states
   const [selectedCountryId, setSelectedCountryId] = useState("")
   const [selectedRegionId, setSelectedRegionId] = useState("")
+
+  // Cascading location data based on current selections
+  const {
+    countries: cascadedCountries,
+    regions: cascadedRegions,
+    zones: cascadedZones
+  } = useSingleCascadingLocation(selectedCountryId || undefined, selectedRegionId || undefined)
+
+  // Prefer cascaded data when available, fallback to props
+  const effectiveCountries = cascadedCountries.length > 0 ? cascadedCountries : countries
+  const effectiveRegions = cascadedRegions.length > 0 ? cascadedRegions : regions
+  const effectiveZones = cascadedZones.length > 0 ? cascadedZones : zones
 
   // Popover states for location selects
   const [openCountries, setOpenCountries] = useState(false)
@@ -147,26 +209,38 @@ export function StudentFilter({
   const debouncedRegionSearch = useDebounce(regionSearch, 300)
 
   // Filter data based on selections (client-side filtering for hierarchical relationships)
+  const availableCountries = useMemo(() => {
+    if (!effectiveRegions || effectiveRegions.length === 0) return effectiveCountries || []
+    const countryMap = new Map<string, Country>()
+    effectiveRegions.forEach((r) => {
+      if (r?.country) countryMap.set(r.country.id, r.country)
+    })
+    // Intersect with provided countries when available to keep consistent references
+    const regionCountries = Array.from(countryMap.values())
+    if (!effectiveCountries || effectiveCountries.length === 0) return regionCountries
+    const countriesById = new Map(effectiveCountries.map((c: Country) => [c.id, c]))
+    return regionCountries.map(rc => countriesById.get(rc.id) || rc)
+  }, [effectiveCountries, effectiveRegions])
   const availableRegions = useMemo(() => {
-    if (!selectedCountryId || !regions) return []
-    return regions.filter((region: Region) => 
+    if (!selectedCountryId || !effectiveRegions) return []
+    return effectiveRegions.filter((region: Region) => 
       region.country.id === selectedCountryId
     )
-  }, [regions, selectedCountryId])
+  }, [effectiveRegions, selectedCountryId])
 
   const availableZones = useMemo(() => {
-    if (!selectedRegionId || !zones) return []
-    return zones.filter((zone: Zone) => 
+    if (!selectedRegionId || !effectiveZones) return []
+    return effectiveZones.filter((zone: Zone) => 
       zone.region.id === selectedRegionId
     )
-  }, [zones, selectedRegionId])
+  }, [effectiveZones, selectedRegionId])
 
   // Filter data based on search
   const filteredCountries = useMemo(() => {
-    return countries.filter((country) =>
+    return availableCountries.filter((country: Country) =>
       country.name.toLowerCase().includes(debouncedCountrySearch.toLowerCase())
     )
-  }, [countries, debouncedCountrySearch])
+  }, [availableCountries, debouncedCountrySearch])
   
   const filteredRegions = useMemo(() => {
     return availableRegions.filter((region) =>
@@ -203,8 +277,8 @@ export function StudentFilter({
 
   // Get display names for selected items
   const getSelectedCountryName = () => {
-    if (!selectedCountryId || !countries) return ""
-    const country = countries.find(c => c.id === selectedCountryId)
+    if (!selectedCountryId || !effectiveCountries) return ""
+    const country = effectiveCountries.find((c: Country) => c.id === selectedCountryId)
     return country?.name || ""
   }
 
@@ -221,6 +295,10 @@ export function StudentFilter({
       selectedLanguageIds.length > 0 ||
       selectedAcademicLevelIds.length > 0 ||
       selectedZoneIds.length > 0 ||
+      ageAbove !== undefined ||
+      ageBelow !== undefined ||
+      hasConsentForm !== undefined ||
+      selectedCohortIds.length > 0 ||
       attendancePercentageAbove !== undefined ||
       attendancePercentageBelow !== undefined ||
       hasFilledBaselineSurvey !== undefined ||
@@ -241,6 +319,10 @@ export function StudentFilter({
     if (selectedLanguageIds.length > 0) count++
     if (selectedAcademicLevelIds.length > 0) count++
     if (selectedZoneIds.length > 0) count++
+    if (ageAbove !== undefined) count++
+    if (ageBelow !== undefined) count++
+    if (hasConsentForm !== undefined) count++
+    if (selectedCohortIds.length > 0) count++
     if (attendancePercentageAbove !== undefined) count++
     if (attendancePercentageBelow !== undefined) count++
     if (hasFilledBaselineSurvey !== undefined) count++
@@ -264,6 +346,16 @@ export function StudentFilter({
     if (selectedAcademicLevelIds.length > 0) filters.academicLevelIds = selectedAcademicLevelIds
     if (selectedZoneIds.length > 0) filters.zoneIds = selectedZoneIds
     
+    // Age filters
+    if (ageAbove !== undefined) filters.ageAbove = ageAbove
+    if (ageBelow !== undefined) filters.ageBelow = ageBelow
+    
+    // Consent form filter
+    if (hasConsentForm !== undefined) filters.hasConsentForm = hasConsentForm
+    
+    // Cohort filters
+    if (selectedCohortIds.length > 0) filters.cohortIds = selectedCohortIds
+    
     // Attendance filters
     if (attendancePercentageAbove !== undefined) filters.attendancePercentageAbove = attendancePercentageAbove
     if (attendancePercentageBelow !== undefined) filters.attendancePercentageBelow = attendancePercentageBelow
@@ -280,12 +372,7 @@ export function StudentFilter({
     if (postAssessmentScoreAbove !== undefined) filters.postAssessmentScoreAbove = postAssessmentScoreAbove
     if (postAssessmentScoreBelow !== undefined) filters.postAssessmentScoreBelow = postAssessmentScoreBelow
     
-    // Commented out for now
-    // if (selectedDisabilityIds.length > 0) filters.disabilityIds = selectedDisabilityIds
-    // if (selectedMarginalizedGroupIds.length > 0) filters.marginalizedGroupIds = selectedMarginalizedGroupIds
-    // if (selectedHasSmartphone !== undefined) filters.hasSmartphone = selectedHasSmartphone
-    // if (selectedHasTrainingExperience !== undefined) filters.hasTrainingExperience = selectedHasTrainingExperience
-
+  
     onApply(filters)
     setOpen(false)
   }
@@ -296,16 +383,6 @@ export function StudentFilter({
     )
   }
 
-  // Commented out for now
-  // const handleSmartphoneToggle = (hasSmartphone: string) => {
-  //   const boolValue = hasSmartphone === "true"
-  //   setSelectedHasSmartphone(selectedHasSmartphone === boolValue ? undefined : boolValue)
-  // }
-
-  // const handleTrainingExperienceToggle = (hasTrainingExperience: string) => {
-  //   const boolValue = hasTrainingExperience === "true"
-  //   setSelectedHasTrainingExperience(selectedHasTrainingExperience === boolValue ? undefined : boolValue)
-  // }
 
   const clearAllFilters = () => {
     setSelectedGenders([])
@@ -314,6 +391,16 @@ export function StudentFilter({
     setSelectedZoneIds([])
     setSelectedCountryId("")
     setSelectedRegionId("")
+    
+    // Clear age filters
+    setAgeAbove(undefined)
+    setAgeBelow(undefined)
+    
+    // Clear consent form filter
+    setHasConsentForm(undefined)
+    
+    // Clear cohort filters
+    setSelectedCohortIds([])
     
     // Clear attendance filters
     setAttendancePercentageAbove(undefined)
@@ -331,13 +418,6 @@ export function StudentFilter({
     setPostAssessmentScoreAbove(undefined)
     setPostAssessmentScoreBelow(undefined)
     
-    // Commented out for now
-    // setSelectedDisabilityIds([])
-    // setSelectedMarginalizedGroupIds([])
-    // setSelectedHasSmartphone(undefined)
-    // setSelectedHasTrainingExperience(undefined)
-    
-    // Apply empty filters immediately instead of waiting for state update
     onApply({})
     setOpen(false)
   }
@@ -369,13 +449,14 @@ export function StudentFilter({
         </Button>
       </PopoverTrigger>
       <PopoverContent 
-        className="w-[500px] p-4 max-h-[70vh] overflow-y-auto" 
+        className="w-[500px] p-0 max-h-[55vh] flex flex-col overflow-y-auto" 
         align="end" 
         alignOffset={-40}
         sideOffset={8}
       >
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Filter Students</h3>
+        <div className="p-4 flex-1 overflow-y-auto">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">Filter Students</h3>
           
           {/* Gender Filter */}
           <div className="space-y-3">
@@ -436,7 +517,7 @@ export function StudentFilter({
                   </div>
                   <div className="max-h-[200px] overflow-y-auto">
                     {filteredCountries.length > 0 ? (
-                      filteredCountries.map((country) => (
+                      filteredCountries.map((country: Country) => (
                         <div
                           key={country.id}
                           className={cn(
@@ -572,36 +653,75 @@ export function StudentFilter({
             </div>
           )}
 
-          {/* Attendance Percentage Filter */}
+          {/* Age Filter */}
+          <RangeField
+            label="Age Range"
+            aboveLabel="Above (years)"
+            belowLabel="Below (years)"
+            aboveValue={ageAbove}
+            belowValue={ageBelow}
+            setAbove={setAgeAbove}
+            setBelow={setAgeBelow}
+            min={0}
+            max={120}
+            placeholderAbove="e.g., 18"
+            placeholderBelow="e.g., 65"
+          />
+
+          {/* Consent Form Filter */}
           <div className="space-y-3">
-            <h4 className="text-base font-semibold">Attendance Percentage</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Above (%)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 80"
-                  value={attendancePercentageAbove || ''}
-                  onChange={(e) => setAttendancePercentageAbove(e.target.value ? Number(e.target.value) : undefined)}
-                  className="h-10"
-                  min="0"
-                  max="100"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Below (%)</Label>
-                <Input
-                  type="number"
-                  placeholder="e.g., 50"
-                  value={attendancePercentageBelow || ''}
-                  onChange={(e) => setAttendancePercentageBelow(e.target.value ? Number(e.target.value) : undefined)}
-                  className="h-10"
-                  min="0"
-                  max="100"
-                />
-              </div>
+            <h4 className="text-base font-semibold">Consent Form</h4>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="consent-form"
+                checked={hasConsentForm === true}
+                onCheckedChange={(checked) => 
+                  setHasConsentForm(checked ? true : undefined)
+                }
+                className="h-5 w-5 rounded-[4px] border-gray-300 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
+              />
+              <Label 
+                htmlFor="consent-form"
+                className="text-base font-normal"
+              >
+                Has Consent Form
+              </Label>
             </div>
           </div>
+
+          {/* Cohort Filter */}
+          {leafCohorts.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-base font-semibold">Cohorts</h4>
+              <MultiSelectCombobox
+                options={leafCohorts.map(cohort => ({ 
+                  value: cohort.id, 
+                  label: getCohortHierarchyName(cohort) 
+                }))}
+                selected={selectedCohortIds}
+                onChange={setSelectedCohortIds}
+                placeholder="Search and select cohorts..."
+                searchPlaceholder="Search cohorts..."
+                noResultsText="No cohorts found."
+                className="w-full"
+              />
+            </div>
+          )}
+
+          {/* Attendance Percentage Filter */}
+          <RangeField
+            label="Attendance Percentage"
+            aboveLabel="Above (%)"
+            belowLabel="Below (%)"
+            aboveValue={attendancePercentageAbove}
+            belowValue={attendancePercentageBelow}
+            setAbove={setAttendancePercentageAbove}
+            setBelow={setAttendancePercentageBelow}
+            min={0}
+            max={100}
+            placeholderAbove="e.g., 80"
+            placeholderBelow="e.g., 50"
+          />
 
           {/* Survey Filters */}
           <div className="space-y-3">
@@ -686,162 +806,53 @@ export function StudentFilter({
             <h4 className="text-base font-semibold">Assessment Scores</h4>
             
             {/* Pre-Assessment Scores */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Pre-Assessment Score</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-600">Above (%)</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 70"
-                    value={preAssessmentScoreAbove || ''}
-                    onChange={(e) => setPreAssessmentScoreAbove(e.target.value ? Number(e.target.value) : undefined)}
-                    className="h-10"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-600">Below (%)</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 50"
-                    value={preAssessmentScoreBelow || ''}
-                    onChange={(e) => setPreAssessmentScoreBelow(e.target.value ? Number(e.target.value) : undefined)}
-                    className="h-10"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-              </div>
-            </div>
+            <RangeField
+              label="Pre-Assessment Score"
+              aboveLabel="Above (%)"
+              belowLabel="Below (%)"
+              aboveValue={preAssessmentScoreAbove}
+              belowValue={preAssessmentScoreBelow}
+              setAbove={setPreAssessmentScoreAbove}
+              setBelow={setPreAssessmentScoreBelow}
+              min={0}
+              max={100}
+              placeholderAbove="e.g., 70"
+              placeholderBelow="e.g., 50"
+            />
 
             {/* Post-Assessment Scores */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Post-Assessment Score</Label>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-600">Above (%)</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 80"
-                    value={postAssessmentScoreAbove || ''}
-                    onChange={(e) => setPostAssessmentScoreAbove(e.target.value ? Number(e.target.value) : undefined)}
-                    className="h-10"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs text-gray-600">Below (%)</Label>
-                  <Input
-                    type="number"
-                    placeholder="e.g., 60"
-                    value={postAssessmentScoreBelow || ''}
-                    onChange={(e) => setPostAssessmentScoreBelow(e.target.value ? Number(e.target.value) : undefined)}
-                    className="h-10"
-                    min="0"
-                    max="100"
-                  />
-                </div>
-              </div>
-            </div>
+            <RangeField
+              label="Post-Assessment Score"
+              aboveLabel="Above (%)"
+              belowLabel="Below (%)"
+              aboveValue={postAssessmentScoreAbove}
+              belowValue={postAssessmentScoreBelow}
+              setAbove={setPostAssessmentScoreAbove}
+              setBelow={setPostAssessmentScoreBelow}
+              min={0}
+              max={100}
+              placeholderAbove="e.g., 80"
+              placeholderBelow="e.g., 60"
+            />
           </div>
-
-          {/* Commented out for now - can be enabled later */}
-          {/* Disabilities Filter */}
-          {/*disabilities.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold">Disabilities</h4>
-              <MultiSelectCombobox
-                options={disabilities.map(disability => ({ value: disability.id, label: disability.name }))}
-                selected={selectedDisabilityIds}
-                onChange={setSelectedDisabilityIds}
-                placeholder="Search and select disabilities..."
-                searchPlaceholder="Search disabilities..."
-                noResultsText="No disabilities found."
-                className="w-full"
-              />
-            </div>
-          )*/}
-
-          {/* Marginalized Groups Filter */}
-          {/*marginalizedGroups.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="text-lg font-semibold">Marginalized Groups</h4>
-              <MultiSelectCombobox
-                options={marginalizedGroups.map(group => ({ value: group.id, label: group.name }))}
-                selected={selectedMarginalizedGroupIds}
-                onChange={setSelectedMarginalizedGroupIds}
-                placeholder="Search and select marginalized groups..."
-                searchPlaceholder="Search marginalized groups..."
-                noResultsText="No marginalized groups found."
-                className="w-full"
-              />
-            </div>
-          )*/}
-
-          {/* Smartphone Filter */}
-          {/*<div className="space-y-4">
-            <h4 className="text-lg font-semibold">Smartphone Access</h4>
-            <div className="grid grid-cols-2 gap-4">
-              {smartphoneOptions.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`smartphone-${option.id}`}
-                    checked={selectedHasSmartphone === (option.id === "true")}
-                    onCheckedChange={() => handleSmartphoneToggle(option.id)}
-                    className="h-5 w-5 rounded-[4px] border-gray-300 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                  />
-                  <Label 
-                    htmlFor={`smartphone-${option.id}`}
-                    className="text-base font-normal"
-                  >
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>*/}
-
-          {/* Training Experience Filter */}
-          {/*<div className="space-y-4">
-            <h4 className="text-lg font-semibold">Training Experience</h4>
-            <div className="grid grid-cols-2 gap-4">
-              {trainingExperienceOptions.map((option) => (
-                <div key={option.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`training-${option.id}`}
-                    checked={selectedHasTrainingExperience === (option.id === "true")}
-                    onCheckedChange={() => handleTrainingExperienceToggle(option.id)}
-                    className="h-5 w-5 rounded-[4px] border-gray-300 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-                  />
-                  <Label 
-                    htmlFor={`training-${option.id}`}
-                    className="text-base font-normal"
-                  >
-                    {option.label}
-                  </Label>
-                </div>
-              ))}
-            </div>
-          </div>*/}
-
-          <div className="flex justify-between gap-3 pt-2">
-            <Button
-              variant="outline"
-              className="flex-1 border-gray-200"
-              onClick={clearAllFilters}
-            >
-              Clear All
-            </Button>
-            <Button
-              className="flex-1 bg-brand text-white hover:bg-blue-600"
-              onClick={handleApply}
-            >
-              Apply
-            </Button>
           </div>
+        </div>
+        
+        {/* Sticky buttons at bottom */}
+        <div className="p-4 border-t bg-white flex justify-between gap-3">
+          <Button
+            variant="outline"
+            className="flex-1 border-gray-200"
+            onClick={clearAllFilters}
+          >
+            Clear All
+          </Button>
+          <Button
+            className="flex-1 bg-brand text-white hover:bg-blue-600"
+            onClick={handleApply}
+          >
+            Apply
+          </Button>
         </div>
       </PopoverContent>
     </Popover>

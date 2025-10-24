@@ -152,14 +152,14 @@ export function CreateCertificateModal({
     }
     
     submitCertificate({
-      issuingOrganization,
+     // issuingOrganization,
+     // issueDate,
+     // completionDate,
+     // description,
+     // creditHours,
+     // grade,
       issueDate,
-      completionDate,
-      description,
-      creditHours,
-      grade,
-      trainingId,
-      traineeId: selectedStudent.id
+      traineeIds: [selectedStudent.id]
     }, {
       onSuccess: () => {
         // Reset form and close modal

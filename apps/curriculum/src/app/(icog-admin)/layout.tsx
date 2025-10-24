@@ -15,7 +15,7 @@ const adminNavItems = [
   },
   {
     icon: (
-      <img src="/users.svg" alt="icon" width={19} height={19} />
+      <img src="/trainingM.svg" alt="icon" width={19} height={19} />
     ),
     href: "/trainings",
     label: "Trainings",

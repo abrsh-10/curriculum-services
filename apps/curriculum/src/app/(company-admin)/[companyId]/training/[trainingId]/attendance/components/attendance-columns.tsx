@@ -358,13 +358,9 @@ export const createAttendanceColumns = (
         )
       },
     },
-  ];
-
-  // Add ID column for first session only
-  if (session && session.first === true) {
-    columns.push({
+    {
       accessorKey: "id",
-      header: "ID Document",
+      header: "ID & Consent Form",
       cell: ({ row }) => {
         const student = row.original;
         const fullName = `${student.firstName} ${student.lastName}`;
@@ -440,7 +436,7 @@ export const createAttendanceColumns = (
                       size="sm"
                     >
                       <CreditCard className="h-3 w-3 mr-1" />
-                      Add ID
+                      Add ID & Consent
                     </Button>
                   }
                 />
@@ -448,12 +444,12 @@ export const createAttendanceColumns = (
             )}
           </div>
         );
-      },
-    });
-  }
+    },
+ 
+    },
 
 
-
+  ];
 
   
   // Append any extra columns provided (future-proofing for new inline forms)

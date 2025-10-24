@@ -10,9 +10,12 @@ import { getCookie } from "@curriculum-services/auth";
 interface TrainingsResponse {
   code: string;
   trainings: Training[];
+  totalPages: number;
+  pageSize: number;
+  currentPage: number;
+  totalElements: number;
   message: string;
 }
-
 interface UseTrainingsProps {
   isArchived?: boolean;
 }

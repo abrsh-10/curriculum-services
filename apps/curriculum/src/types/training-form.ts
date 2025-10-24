@@ -29,6 +29,9 @@ export const durationSchema = z.object({
   deliveryMethod: z.enum(["BLENDED", "OFFLINE", "VIRTUAL"]),
   startDate: z.string().min(1, "Start date is required"),
   endDate: z.string().min(1, "End date is required"),
+  // New Edge product fields (optional for backward compatibility)
+  productKey: z.enum(["LEYU", "OTHER"]).nullable().optional(),
+  edgeProduct: z.boolean().optional().default(false),
 })
 
 export type DurationFormData = z.infer<typeof durationSchema>
@@ -283,6 +286,9 @@ export function apiToFormData(training: Training): PreloadedFormData {
     endDate: training.endDate || '',
     preloadedTrainingType: training.trainingType,
     preloadedTrainingTypes: training.trainingType ? [training.trainingType] : [],
+    // New Edge product fields (handle nulls from existing trainings)
+    productKey: training.productKey,
+    edgeProduct: training.edgeProduct ?? false,
     
     // Step 4
     totalParticipants: training.totalParticipants || 0,
@@ -360,6 +366,14 @@ export function formToApiData(formData: Partial<TrainingFormData>): Record<strin
   
   if (formData.endDate !== undefined) {
     apiData.endDate = formData.endDate
+  }
+
+  if (formData.productKey !== undefined) {
+    apiData.productKey = formData.productKey
+  }
+
+  if (formData.edgeProduct !== undefined) {
+    apiData.edgeProduct = formData.edgeProduct
   }
   
   if (formData.totalParticipants !== undefined) {

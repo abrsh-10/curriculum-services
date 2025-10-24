@@ -3,21 +3,42 @@
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useParams } from "next/navigation"
-import { useTrainings, useArchiveTraining } from "@/lib/hooks/useTrainings"
+import { usePaginatedTrainings, useArchiveTraining } from "@/lib/hooks/useTrainings"
 import { TrainingCard } from "@/components/ui/training-card"
 import { Loading } from "@/components/ui/loading"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { AlertCircle, RefreshCw } from "lucide-react"
+import { AlertCircle, RefreshCw, ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import axios from "axios"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 
 export default function CompanyAdminTraining() {
   const router = useRouter()
   const params = useParams()
-  const { data, isLoading, error, refetch, } = useTrainings()
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const { data, isLoading, error, refetch } = usePaginatedTrainings({ page, pageSize })
   const { isPending: isArchiving } = useArchiveTraining()
   const { isCompanyAdmin } = useUserRole()
+
+  // Track responsive grid columns to decide when to hide pagination
+  const [gridColumns, setGridColumns] = useState(3)
+
+  useEffect(() => {
+    const updateColumns = () => {
+      if (typeof window === "undefined") return
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        setGridColumns(3)
+      } else if (window.matchMedia("(min-width: 768px)").matches) {
+        setGridColumns(2)
+      } else {
+        setGridColumns(1)
+      }
+    }
+    updateColumns()
+    window.addEventListener("resize", updateColumns)
+    return () => window.removeEventListener("resize", updateColumns)
+  }, [])
 
   const handleCreateTraining = () => {
     router.push(`/${params.companyId}/training/create-training`)
@@ -39,9 +60,6 @@ export default function CompanyAdminTraining() {
 
   // Show error UI when there's an error
   if (error && data?.trainings?.length === 0) {
-    const errorMessage = axios.isAxiosError(error)
-      ? error.response?.data?.message || "Failed to fetch trainings. Please try again later."
-      : "Failed to fetch trainings. Please try again later."
       
     return (
       <div className="lg:px-16 md:px-14 px-4">
@@ -123,6 +141,94 @@ export default function CompanyAdminTraining() {
             />
           ))}
         </div>
+
+        {/* Pagination Controls - mirrored from users table, only show if more than visible grid capacity */}
+        {(() => {
+          const totalElements = data?.totalElements || 0
+          const maxVisibleWithoutPagination = gridColumns * 3 // 3 rows worth: lg 9, md 6, sm 3
+          const showPagination = totalElements > maxVisibleWithoutPagination
+          if (!showPagination) return null
+          return (
+        <div className="flex items-center justify-between py-4">
+          <div className="flex items-center justify-between w-full">
+            {/* Left side - Page Size Selector */}
+            <div className="flex items-center gap-2">
+              <span className="md:text-sm text-xs text-gray-500">Showing</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const newSize = Number(e.target.value)
+                  setPageSize(newSize)
+                  setPage(1)
+                }}
+                className="border rounded-md md:text-sm text-xs md:px-2 px-2 py-1 bg-white"
+                title="Page Size"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            {/* Center - Showing Text */}
+            <div className="text-xs md:text-sm pl-2 text-gray-500">
+              {(() => {
+                const totalElements = data?.totalElements || 0
+                const startRecord = page > 0 ? ((page - 1) * pageSize) + 1 : 0
+                const endRecord = Math.min(page * pageSize, totalElements)
+                return totalElements > 0
+                  ? `Showing ${startRecord} to ${endRecord} out of ${totalElements} records`
+                  : "No records to show"
+              })()}
+            </div>
+
+            {/* Right side - Pagination Controls */}
+            <div className="flex gap-1">
+              <Button
+                variant="pagination"
+                size="sm"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeftIcon className="w-4 h-4" />
+              </Button>
+              {Array.from({ length: Math.min(5, data?.totalPages || 1) }, (_, i) => {
+                const totalPages = data?.totalPages || 1
+                let pageNumber
+                if (totalPages <= 5) {
+                  pageNumber = i + 1
+                } else {
+                  const middle = 2
+                  const start = Math.max(1, page - middle)
+                  const end = Math.min(totalPages, start + 4)
+                  const adjustedStart = end === totalPages ? Math.max(1, end - 4) : start
+                  pageNumber = adjustedStart + i
+                }
+                if (pageNumber > (data?.totalPages || 1)) return null
+                return (
+                  <Button
+                    key={pageNumber}
+                    variant="outline"
+                    className={page === pageNumber ? "border-brand text-brand" : ""}
+                    size="sm"
+                    onClick={() => setPage(pageNumber)}
+                  >
+                    {pageNumber}
+                  </Button>
+                )
+              }).filter(Boolean)}
+              <Button
+                variant="pagination"
+                size="sm"
+                onClick={() => setPage(page + 1)}
+                disabled={page >= (data?.totalPages || 1)}
+              >
+                <ChevronRightIcon className="md:w-4 md:h-4 w-2 h-2" />
+              </Button>
+            </div>
+          </div>
+        </div>)})()}
       </div>
     </div>
   );

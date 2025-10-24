@@ -20,7 +20,7 @@ function SessionCardComponent({ session, cohortId, onEdit }: SessionCardProps) {
   const params = useParams()
   const companyId = params.companyId as string
   const trainingId = params.trainingId as string
-  const { isProjectManager, isTrainingAdmin } = useUserRole()
+  const { isProjectManager, isTrainingAdmin, isCompanyAdmin } = useUserRole()
   
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null)
@@ -160,7 +160,7 @@ function SessionCardComponent({ session, cohortId, onEdit }: SessionCardProps) {
           >
             View Details
           </Button>
-          {(isProjectManager || isTrainingAdmin) && (
+          {(isProjectManager || isTrainingAdmin || isCompanyAdmin) && (
             <>
               <Button 
                 variant="outline" 

@@ -4,6 +4,7 @@ import { useFormContext } from 'react-hook-form'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
 import { StepProps } from '../types'
 import { TrainingFormData } from '@/types/training-form'
@@ -35,6 +36,8 @@ export function CreateTrainingStep3({ onNext, onBack, onCancel, initialData, isE
   const deliveryMethod = watch('deliveryMethod')
   const startDateString = watch('startDate') || initialData?.startDate || ''
   const endDateString = watch('endDate') || initialData?.endDate || ''
+  const productKey = (watch('productKey') ?? initialData?.productKey) ?? null
+  const edgeProduct = watch('edgeProduct') ?? initialData?.edgeProduct ?? false
 
   // Convert strings to Date objects for DatePicker components
   const startDate = startDateString ? new Date(startDateString) : undefined
@@ -56,6 +59,14 @@ export function CreateTrainingStep3({ onNext, onBack, onCancel, initialData, isE
   
   const handleDeliveryMethodChange = (value: "BLENDED" | "OFFLINE" | "VIRTUAL") => {
     setValue('deliveryMethod', value, { shouldValidate: true })
+  }
+
+  const handleProductKeyChange = (value: 'LEYU' | 'OTHER' | 'NONE') => {
+    setValue('productKey', value === 'NONE' ? null : value, { shouldValidate: true })
+  }
+
+  const handleEdgeProductToggle = (checked: boolean | 'indeterminate') => {
+    setValue('edgeProduct', checked === true, { shouldValidate: true })
   }
 
   const handleStartDateChange = (date: Date | undefined) => {
@@ -161,6 +172,31 @@ export function CreateTrainingStep3({ onNext, onBack, onCancel, initialData, isE
           {errors.trainingTypeId && (
             <p className="text-sm text-red-500">{errors.trainingTypeId.message}</p>
           )}
+        </div>
+
+        {/* New Edge Product fields */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Product Key</label>
+            <Select value={(productKey ?? undefined) as unknown as string} onValueChange={(v) => handleProductKeyChange(v as 'LEYU' | 'OTHER' | 'NONE')}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select product" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="NONE">None</SelectItem>
+                <SelectItem value="LEYU">LEYU</SelectItem>
+                <SelectItem value="OTHER">OTHER</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Is Edge Product?</label>
+            <div className="h-12 flex items-center px-3 border rounded-md gap-3">
+              <Checkbox checked={edgeProduct} onCheckedChange={handleEdgeProductToggle} />
+              <span className="text-sm">Enable</span>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">

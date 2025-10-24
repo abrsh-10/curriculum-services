@@ -68,42 +68,38 @@ export const studentColumnsBase: ColumnDef<Student>[] = [
       }
     }
   },
+
   {
-    id: "language",
-    header: "Language",
+    accessorKey: "cohortName",
+    header: "Cohort Name",
     cell: ({ row }) => {
-      const language = row.original.language?.name
+        return <span className="text-gray-500">{row.original.cohortName || "N/A"}</span>
+      }
+  },
+  {
+    id: "certificate",
+    header: "Certificate",
+    cell: ({ row }) => {
+      const certificateUrl = row.original.certificateUrl
+      
+      if (!certificateUrl) {
+        return <span className="text-gray-400 text-sm">No Certificate</span>
+      }
       
       return (
-        <div className="flex items-center gap-2">
-          <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1
-            bg-blue-50 text-blue-700`}>
-            <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-            <span>{language || "Not specified"}</span>
-          </div>
-        </div>
+        <a 
+          href={certificateUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center text-xs gap-1.5 text-green-600 hover:text-green-800 underline"
+        >
+          <FileText className="h-4 w-4" />
+          <span>View Certificate</span>
+        </a>
       )
     }
   },
-  // {
-  //   id: "trainingExperience",
-  //   header: "Training Experience",
-  //   cell: ({ row }) => {
-  //     const hasExperience = row.original.hasTrainingExperience
-  //     const experienceStatus = hasExperience ? "experienced" : "new"
-      
-  //     return (
-  //       <div className="flex items-center gap-2">
-  //         <div className={`px-2 py-1 rounded-full text-xs font-medium flex items-center gap-1
-  //           ${hasExperience ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-  //           <div className={`w-1.5 h-1.5 rounded-full 
-  //             ${hasExperience ? "bg-green-500" : "bg-amber-500"}`} />
-  //           <span className="capitalize">{experienceStatus}</span>
-  //         </div>
-  //       </div>
-  //     )
-  //   }
-  // }
+
 ]
 
 // Student columns with selection checkbox
@@ -228,15 +224,18 @@ export const ConsentFormCell = ({ student }: ConsentFormCellProps) => {
     fileInputRef.current?.click();
   };
 
-  // If student already has a consent form
-  if (student.consentFormUrl) {
+  // Determine which URL to use - prioritize signatureUrl, then consentFormUrl
+  const formUrl = student.signatureUrl || student.consentFormUrl;
+
+  // If student already has a consent form or signature
+  if (formUrl) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <a 
-          href={student.consentFormUrl} 
+          href={formUrl} 
           target="_blank" 
           rel="noopener noreferrer"
-          className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 underline"
+          className="flex items-center text-xs gap-1.5 text-blue-600 hover:text-blue-800 underline"
         >
           <FileText className="h-4 w-4" />
           <span>View Form</span>
@@ -266,7 +265,7 @@ export const ConsentFormCell = ({ student }: ConsentFormCellProps) => {
             {isUploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Pencil className="h-4 w-4 text-gray-500" />
+              <Pencil className="h-2 w-2 text-gray-500" />
             )}
           </Button>
         )}

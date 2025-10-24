@@ -46,6 +46,9 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
       duration: formData.duration || 1,
       durationType: formData.durationType || 'DAYS',
       deliveryMethod: formData.deliveryMethod || 'OFFLINE',
+      // Edge product fields - do not force default for productKey on edit
+      productKey: formData.productKey ?? null,
+      edgeProduct: formData.edgeProduct ?? false,
       startDate: formData.startDate || '',
       endDate: formData.endDate || '',
       trainingTypeId: formData.trainingTypeId || '',
@@ -137,6 +140,8 @@ export function OverviewEdit({ training, initialStep = 1, onSave, onCancel }: Ov
               startDate: formData.startDate,
               endDate: formData.endDate,
               trainingTypeId: formData.trainingTypeId || '',
+              productKey: formData.productKey ?? null,
+              edgeProduct: formData.edgeProduct ?? false,
               preloadedTrainingType: formData.preloadedTrainingType,
               preloadedTrainingTypes: formData.preloadedTrainingTypes
             }}

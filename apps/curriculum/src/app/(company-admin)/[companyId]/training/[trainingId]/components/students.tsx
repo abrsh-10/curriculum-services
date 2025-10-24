@@ -6,9 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Loading } from "@/components/ui/loading"
 import { useStudents, useAddStudent, useStudentById, useUpdateStudent, useDeleteStudent, useBulkDeleteStudents, useBulkImportStudentsByName, Student, CreateStudentData, CreateStudentByNameData, StudentFilters } from "@/lib/hooks/useStudents"
 import { useSingleCascadingLocation } from "@/lib/hooks/useCascadingLocation"
+import { useSubmitCertificate } from "@/lib/hooks/useCertificate"
 import { toast } from "sonner"
-import { Plus, Upload, ArrowLeft, Trash2 } from "lucide-react"
+import { Plus, Upload, ArrowLeft, Trash2, Award, MoreVertical } from "lucide-react"
 import Image from "next/image"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/lib/hooks/useDebounce"
 import { studentColumns, createActionsColumn, createStudentColumnsWithSelection, createConsentFormColumn } from "./students/student-columns"
@@ -21,6 +28,7 @@ import { StudentFormModal } from "./students/student-form-modal"
 import { DeleteStudentDialog } from "./students/delete-student-dialog"
 import { CSVImportContent } from "./students/csv-import-content"
 import { StudentFilter } from "./students/student-filter"
+import { CertificateDateModal } from "./students/certificate-date-modal"
 
 interface StudentsComponentProps {
   trainingId: string
@@ -41,9 +49,13 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [filters, setFilters] = useState<StudentFilters>({})
+  const [certificateDateModalOpen, setCertificateDateModalOpen] = useState(false)
   const debouncedSearch = useDebounce(searchQuery, 500)
   
-  const { isProjectManager, isTrainingAdmin, isCompanyAdmin } = useUserRole()
+  const { isProjectManager, isTrainingAdmin, isCompanyAdmin, isCurriculumAdmin } = useUserRole()
+  
+  // Certificate generation mutation
+  const { mutate: generateCertificates, isPending: isGeneratingCertificates } = useSubmitCertificate()
   
   // Memoize filters to prevent unnecessary re-renders
   const memoizedFilters = useMemo(() => filters, [filters]);
@@ -515,6 +527,62 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
     setBulkDeleteDialogOpen(true);
   }, [rowSelection, paginationData.students]);
 
+  // Handle certificate generation - open date modal
+  const handleGenerateCertificates = useCallback(() => {
+    const selectedIndices = Object.keys(rowSelection);
+
+    // MUST have students selected
+    if (selectedIndices.length === 0) {
+      toast.error('Please select students to generate certificates');
+      return;
+    }
+
+    // Limit to 10 students at a time
+    if (selectedIndices.length > 10) {
+      toast.error('You can only generate certificates for up to 10 students at a time');
+      return;
+    }
+
+    // Open the date selection modal
+    setCertificateDateModalOpen(true);
+  }, [rowSelection]);
+
+  // Handle certificate generation with selected date
+  const handleConfirmCertificateGeneration = useCallback((issueDate: string) => {
+    const selectedIndices = Object.keys(rowSelection);
+    
+    // Get selected student IDs
+    const traineeIds = selectedIndices
+      .map(index => {
+        const student = paginationData.students[parseInt(index)];
+        return student?.id;
+      })
+      .filter(Boolean) as string[];
+
+    if (traineeIds.length === 0) {
+      toast.error('No valid students selected');
+      return;
+    }
+
+    // Generate certificates with the selected date
+    generateCertificates(
+      {
+        issueDate,
+        traineeIds
+      },
+      {
+        onSuccess: () => {
+          // Clear selection and close modal after successful generation
+          setRowSelection({});
+          setCertificateDateModalOpen(false);
+        },
+        onError: () => {
+          // Keep modal open on error so user can retry
+        }
+      }
+    );
+  }, [rowSelection, paginationData.students, generateCertificates]);
+
   const confirmBulkDelete = useCallback(async () => {
     const selectedIndices = Object.keys(rowSelection);
     const selectedStudentIds = selectedIndices
@@ -641,18 +709,18 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
           </>
         ) : (
           <>
-            <h1 className="text-lg font-semibold mb-6">Students</h1>
-
             {shouldShowEmptyState ? (
               emptyState
             ) : (
               <>
+                {/* Header with title and controls */}
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+                  <h1 className="text-lg font-semibold">Students</h1>
 
-
-                {/* Always show search bar and buttons when there are students or user has edit permission */}
-                <div className="flex items-center lg:justify-end gap-3 mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="relative md:w-[300px]">
+                  {/* Search bar and buttons */}
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                    <div className="flex w-full sm:w-auto items-center gap-3">
+                    <div className="relative w-full sm:w-[280px] md:w-[300px]">
                       <Image
                         src="/search.svg"
                         alt="Search"
@@ -662,14 +730,16 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
                       />
                       <Input
                         placeholder="Search students..."
-                        className="pl-10 h-10 text-sm bg-white border-gray-200"
+                        className="pl-10 h-10 text-sm bg-white border-gray-200 w-full"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                       />
                     </div>
                     
                     {/* Filter Component */}
-                    <StudentFilter
+                    <div className="w-full sm:w-auto">
+                      <StudentFilter
+                      trainingId={trainingId}
                       countries={csvCountries}
                       regions={csvRegions}
                       zones={csvZones}
@@ -677,35 +747,73 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
                       academicLevels={academicLevels}
                       onApply={handleApplyFilters}
                       defaultSelected={memoizedFilters}
-                    />
+                      />
+                    </div>
                   </div>
                   
                   {hasEditPermission && (
-                    <div className="flex gap-2">
-                      {/* Delete Button - only show when multiple students selected */}
-                      {selectedStudentsCount > 1 && (
-                        <Button
-                          variant="destructive"
-                          className="flex items-center gap-2"
-                          onClick={handleBulkDelete}
-                          disabled={bulkDeleteMutation.isPending}
-                        >
-                          {bulkDeleteMutation.isPending ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                              Deleting...
-                            </>
-                          ) : (
-                            <>
-                              <Trash2 className="h-4 w-4" />
-                              Delete {selectedStudentsCount} Students
-                            </>
-                          )}
-                        </Button>
+                    <div className="flex gap-2 w-full sm:w-auto sm:justify-end">
+                      {/* Bulk Actions Dropdown - only show when students are selected */}
+                      {selectedStudentsCount > 0 && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className="flex items-center gap-2 w-full sm:w-auto"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                              <span>Bulk Actions ({selectedStudentsCount})</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-56">
+                            {/* Generate Certificate - only for curriculum/company admin and 1-10 students */}
+                            {( isCompanyAdmin || isProjectManager) && selectedStudentsCount <= 10 && (
+                              <DropdownMenuItem
+                                onClick={handleGenerateCertificates}
+                                disabled={isGeneratingCertificates}
+                                className="flex items-center gap-2 cursor-pointer"
+                              >
+                                {isGeneratingCertificates ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                    <span>Generating Certificates...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Award className="h-4 w-4 text-green-600" />
+                                    <span>Generate Certificate{selectedStudentsCount > 1 ? 's' : ''}</span>
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
+                            
+                            {/* Delete - only show when multiple students selected */}
+                            {selectedStudentsCount > 1 && (
+                              <DropdownMenuItem
+                                onClick={handleBulkDelete}
+                                disabled={bulkDeleteMutation.isPending}
+                                className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
+                              >
+                                {bulkDeleteMutation.isPending ? (
+                                  <>
+                                    <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                    <span>Deleting...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-4 w-4" />
+                                    <span>Delete {selectedStudentsCount} Students</span>
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
+                      
                       <Button
                         variant="outline"
-                        className="flex items-center gap-2"
+                        className="flex items-center gap-2 w-full sm:w-auto"
                         onClick={handleShowImport}
                       >
                         <Upload className="h-4 w-4" />
@@ -720,6 +828,7 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
                       </Button>
                     </div>
                   )}
+                  </div>
                 </div>
 
                 {/* Always show the table - it handles its own loading and empty states */}
@@ -780,6 +889,15 @@ export function StudentsComponent({ trainingId }: StudentsComponentProps) {
           isDeleting={bulkDeleteMutation.isPending}
           title={`Delete ${selectedStudentsCount} Students`}
           description={`Are you sure you want to delete these ${selectedStudentsCount} students? This action cannot be undone.`}
+        />
+
+        {/* Certificate Date Selection Modal */}
+        <CertificateDateModal
+          isOpen={certificateDateModalOpen}
+          onClose={() => setCertificateDateModalOpen(false)}
+          onConfirm={handleConfirmCertificateGeneration}
+          studentCount={selectedStudentsCount}
+          isGenerating={isGeneratingCertificates}
         />
       </div>
     </div>

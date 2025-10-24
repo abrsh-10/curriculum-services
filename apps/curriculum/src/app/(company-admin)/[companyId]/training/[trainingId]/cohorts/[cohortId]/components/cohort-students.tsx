@@ -91,12 +91,15 @@ export const CohortConsentFormCell = ({ student, cohortId }: CohortConsentFormCe
     fileInputRef.current?.click();
   };
 
-  // If student already has a consent form
-  if (student.consentFormUrl) {
+  // Determine which URL to use - prioritize signatureUrl, then consentFormUrl
+  const formUrl = student.signatureUrl || student.consentFormUrl;
+
+  // If student already has a consent form or signature
+  if (formUrl) {
     return (
       <div className="flex items-center gap-2">
         <a 
-          href={student.consentFormUrl} 
+          href={formUrl} 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 underline"

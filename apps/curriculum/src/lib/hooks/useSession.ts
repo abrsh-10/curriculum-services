@@ -474,3 +474,59 @@ export function useDeleteSession() {
   }
 }
 
+// Assign trainer to session(s) hook
+export interface AssignTrainerData {
+  assignmentType: 'MAIN' | 'ASSISTANT'
+  sessionIds: string[]
+  trainerId: string
+}
+
+interface AssignTrainerResponse {
+  code: string
+  message: string
+}
+
+export function useAssignTrainerToSession() {
+  const queryClient = useQueryClient()
+
+  const assignTrainerMutation = useMutation({
+    mutationFn: async (data: AssignTrainerData) => {
+      const token = getCookie('token')
+      const response = await axios.post<AssignTrainerResponse>(
+        `${process.env.NEXT_PUBLIC_API}/session/assign-trainer`,
+        data,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return { responseData: response.data, sessionIds: data.sessionIds }
+    },
+    onSuccess: ({ sessionIds }) => {
+      // Invalidate session trainers queries for all affected sessions
+      sessionIds.forEach(sessionId => {
+        queryClient.invalidateQueries({ queryKey: ['sessionTrainers', sessionId] })
+        queryClient.invalidateQueries({ queryKey: ['session', sessionId] })
+      })
+      
+      // Invalidate sessions list queries
+      queryClient.invalidateQueries({ queryKey: ['sessions'] })
+      queryClient.invalidateQueries({ queryKey: ['cohortSessions'] })
+      
+      toast.success(`Trainer assigned successfully to ${sessionIds.length} session${sessionIds.length > 1 ? 's' : ''}`)
+    },
+    onError: (error: any) => {
+      console.log("Error assigning trainer:", error)
+      toast.error(error.response?.data?.message || 'Failed to assign trainer to session')
+    }
+  })
+
+  return {
+    assignTrainer: assignTrainerMutation.mutate,
+    assignTrainerAsync: assignTrainerMutation.mutateAsync,
+    isLoading: assignTrainerMutation.isPending,
+    isSuccess: assignTrainerMutation.isSuccess,
+    isError: assignTrainerMutation.isError,
+    error: assignTrainerMutation.error,
+  }
+}
+

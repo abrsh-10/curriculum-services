@@ -13,6 +13,8 @@ export const ID_TYPES = [
   { id: 'national_id', name: 'National ID', requiresBack: false },
   { id: 'kebele_id', name: 'Resident (Kebele) ID', requiresBack: true },
   { id: 'driving_license', name: 'Driving License', requiresBack: true },
+  // Not a government ID, but a special upload handled by student consent endpoint
+  { id: 'consent_form', name: 'Consent Form', requiresBack: false },
 ]
 
 // Types for attendance
@@ -41,7 +43,7 @@ interface StudentIdSubmission {
   idType: string;
   idFrontFile: File;
   idBackFile?: File;
-}
+} 
 
 interface ApiErrorResponse {
   message: string;

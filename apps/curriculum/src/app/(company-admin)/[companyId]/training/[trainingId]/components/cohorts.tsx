@@ -17,13 +17,6 @@ import {
   DialogTitle,
   DialogContent
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import Image from "next/image"
 
 interface CohortsComponentProps {
@@ -128,10 +121,7 @@ export function CohortsComponent({ trainingId }: CohortsComponentProps) {
     setPage(1) // Reset to first page when filters change
   }
 
-  const handlePageSizeChange = (value: string) => {
-    setPageSize(Number(value))
-    setPage(1) // Reset to first page when page size changes
-  }
+  // Page size change handled inline in pagination UI to match existing patterns
 
   const handleSearch = () => {
     setActiveSearchTerm(searchTerm)
@@ -246,59 +236,80 @@ export function CohortsComponent({ trainingId }: CohortsComponentProps) {
               
               {/* Pagination Controls */}
               {totalPages > 1 && (
-                <div className="mt-6 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-700">
-                      Showing <span className="font-medium">{((page - 1) * pageSize) + 1}</span> to{" "}
-                      <span className="font-medium">
-                        {Math.min(page * pageSize, totalElements)}
-                      </span>{" "}
-                      of <span className="font-medium">{totalElements}</span> cohorts
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-4">
-                    {/* Page Size Selector */}
+                <div className="flex items-center justify-between py-4">
+                  <div className="flex items-center justify-between w-full">
+                    {/* Left - Page Size Selector */}
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-700">Rows per page:</span>
-                      <Select
-                        value={pageSize.toString()}
-                        onValueChange={handlePageSizeChange}
+                      <span className="md:text-sm text-xs text-gray-500">Showing</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          const newSize = Number(e.target.value)
+                          setPageSize(newSize)
+                          setPage(1)
+                        }}
+                        className="border rounded-md md:text-sm text-xs md:px-2 px-2 py-1 bg-white"
+                        title="Page Size"
                       >
-                        <SelectTrigger className="h-8 w-[70px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5</SelectItem>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <option value={10}>10</option>
+                        <option value={20}>20</option>
+                        <option value={30}>30</option>
+                        <option value={50}>50</option>
+                      </select>
                     </div>
 
-                    {/* Page Navigation */}
-                    <div className="flex items-center gap-2">
+                    {/* Center - Showing Text */}
+                    <div className="text-xs md:text-sm pl-2 text-gray-500">
+                      {(() => {
+                        const startRecord = page > 0 ? ((page - 1) * pageSize) + 1 : 0
+                        const endRecord = Math.min(page * pageSize, totalElements)
+                        return totalElements > 0
+                          ? `Showing ${startRecord} to ${endRecord} out of ${totalElements} records`
+                          : "No records to show"
+                      })()}
+                    </div>
+
+                    {/* Right - Pagination Controls */}
+                    <div className="flex gap-1">
                       <Button
-                        variant="outline"
+                        variant="pagination"
                         size="sm"
-                        onClick={() => setPage((p) => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                        className="h-8 w-8 p-0"
+                        onClick={() => setPage(Math.max(1, page - 1))}
+                        disabled={page <= 1}
                       >
-                        <ChevronLeft className="h-4 w-4" />
+                        <ChevronLeft className="w-4 h-4" />
                       </Button>
-                      <span className="text-sm text-gray-700">
-                        Page {page} of {totalPages}
-                      </span>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNumber
+                        if (totalPages <= 5) {
+                          pageNumber = i + 1
+                        } else {
+                          const middle = 2
+                          const start = Math.max(1, page - middle)
+                          const end = Math.min(totalPages, start + 4)
+                          const adjustedStart = end === totalPages ? Math.max(1, end - 4) : start
+                          pageNumber = adjustedStart + i
+                        }
+                        if (pageNumber > totalPages) return null
+                        return (
+                          <Button
+                            key={pageNumber}
+                            variant="outline"
+                            className={page === pageNumber ? "border-brand text-brand" : ""}
+                            size="sm"
+                            onClick={() => setPage(pageNumber)}
+                          >
+                            {pageNumber}
+                          </Button>
+                        )
+                      }).filter(Boolean)}
                       <Button
-                        variant="outline"
+                        variant="pagination"
                         size="sm"
-                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                        disabled={page === totalPages}
-                        className="h-8 w-8 p-0"
+                        onClick={() => setPage(Math.min(totalPages, page + 1))}
+                        disabled={page >= totalPages}
                       >
-                        <ChevronRight className="h-4 w-4" />
+                        <ChevronRight className="md:w-4 md:h-4 w-2 h-2" />
                       </Button>
                     </div>
                   </div>

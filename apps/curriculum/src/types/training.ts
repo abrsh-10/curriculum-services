@@ -76,6 +76,9 @@ export interface Training {
   economicBackgroundIds?: string[];
   academicQualificationIds?: string[];
   trainingPurposeIds?: string[];
+  // Edge New DTO
+  productKey?: 'LEYU' | 'OTHER' | null;
+  edgeProduct?: boolean | null;
 }
 
 // Type for API requests with ID-based percentages

@@ -44,6 +44,9 @@ export default function CreateTraining() {
       duration: 1,
       durationType: "DAYS",
       deliveryMethod: "OFFLINE",
+        // New edge product fields (optional)
+        productKey: "LEYU",
+        edgeProduct: false,
       trainingTypeId: "",
       totalParticipants: 0,
       ageGroupIds: [],
@@ -81,6 +84,9 @@ export default function CreateTraining() {
       deliveryMethod: data.deliveryMethod,
       startDate: data.startDate,
       endDate: data.endDate,
+        // Edge DTO
+        productKey: data.productKey,
+        edgeProduct: data.edgeProduct ?? false,
       
       // Step 4
       totalParticipants: data.totalParticipants,

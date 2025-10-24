@@ -4,7 +4,7 @@ import { useState, lazy, Suspense } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { Button } from "@/components/ui/button"
-import { Plus, Filter, Loader2, X } from "lucide-react"
+import { Plus, Filter, Loader2, X, UserPlus } from "lucide-react"
 import { useCohortSessions } from "@/lib/hooks/useSession"
 import { Input } from "@/components/ui/input"
 import { SessionList } from "../../../components/sessions/session-list"
@@ -16,6 +16,7 @@ import {
   DialogContent
 } from "@/components/ui/dialog"
 import Image from "next/image"
+import { AssignTrainerModal } from "./assign-trainer-modal"
 
 // Lazy load the EditSessionDialog since it's only needed when editing
 const EditSessionDialog = lazy(() => 
@@ -43,6 +44,7 @@ export function CohortSessions({ cohortId, trainingId }: CohortSessionsProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [editSessionId, setEditSessionId] = useState<string | null>(null)
   const [isAddSessionModalOpen, setIsAddSessionModalOpen] = useState(false)
+  const [isAssignTrainerModalOpen, setIsAssignTrainerModalOpen] = useState(false)
 
   const handleAddSession = () => {
     setIsAddSessionModalOpen(true)
@@ -67,6 +69,14 @@ export function CohortSessions({ cohortId, trainingId }: CohortSessionsProps) {
 
   const handleAddSessionCancel = () => {
     setIsAddSessionModalOpen(false)
+  }
+
+  const handleAssignTrainer = () => {
+    setIsAssignTrainerModalOpen(true)
+  }
+
+  const handleAssignTrainerSuccess = () => {
+    refetch() // Refresh the sessions list
   }
 
   const filteredSessions = sessions.filter(session => 
@@ -109,6 +119,17 @@ export function CohortSessions({ cohortId, trainingId }: CohortSessionsProps) {
               <Filter className="h-4 w-4" />
               <span>Filters</span>
             </button>
+            {(isProjectManager || isTrainingAdmin) && sessions.length > 0 && (
+              <Button
+                variant="outline"
+                className="border-[#0B75FF] text-[#0B75FF] hover:bg-[#0B75FF]/10 flex items-center gap-2 h-10"
+                onClick={handleAssignTrainer}
+                disabled={isLoading}
+              >
+                <UserPlus className="h-4 w-4" />
+                <span>Assign Trainer</span>
+              </Button>
+            )}
             {(isProjectManager || isTrainingAdmin) && (
               <Button
                 className="bg-[#0B75FF] hover:bg-[#0B75FF]/90 text-white flex items-center gap-2 h-10"
@@ -194,6 +215,14 @@ export function CohortSessions({ cohortId, trainingId }: CohortSessionsProps) {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Assign Trainer Modal */}
+      <AssignTrainerModal
+        isOpen={isAssignTrainerModalOpen}
+        onClose={() => setIsAssignTrainerModalOpen(false)}
+        sessions={filteredSessions}
+        onSuccess={handleAssignTrainerSuccess}
+      />
     </>
   )
 } 
