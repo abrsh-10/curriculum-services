@@ -43,6 +43,22 @@ interface CertificateQueryParams {
   pageSize?: number
 }
 
+// Single certificate response for view page
+export interface SingleCertificateResponse {
+  code: string
+  certificate: {
+    id: string
+    trainingId: string
+    trainingTitle: string
+    traineeId: string
+    traineeName: string
+    traineeContactPhone: string
+    fileUrl: string
+    issueDate: string
+  }
+  message: string
+}
+
 export function useSubmitCertificate() {
   const queryClient = useQueryClient();
   
@@ -147,6 +163,54 @@ export function useGetCertificates(
     retry: (failureCount, error) => {
       console.log(`Retry attempt ${failureCount} for certificates`);
       // Only retry network errors, not 404s or other API errors
+      if (axios.isAxiosError(error) && !error.response) {
+        return failureCount < 3;
+      }
+      return false;
+    }
+  })
+}
+
+export function useGetCertificateById(
+  certificateId: string,
+  options?: UseQueryOptions<SingleCertificateResponse, Error>
+) {
+  return useQuery<SingleCertificateResponse, Error>({
+    queryKey: ['certificate', certificateId],
+    queryFn: async () => {
+      try {
+        const token = getCookie('token')
+        if (!token) {
+          console.log("No auth token found for certificate fetch");
+          throw new Error("Authentication required");
+        }
+        
+        console.log(`Fetching certificate: ${certificateId}`);
+        const response = await axios.get<SingleCertificateResponse>(
+          `${process.env.NEXT_PUBLIC_API}/certificate/${certificateId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        )
+        
+        console.log("Certificate API Response:", response.data);
+        
+        // Validate response structure
+        if (response.data.code !== "OK") {
+          console.warn("Certificate API returned non-OK status:", response.data);
+        }
+        
+        return response.data;
+      } catch (error) {
+        console.log("Error fetching certificate:", error);
+        throw error;
+      }
+    },
+    enabled: !!certificateId, // Only run query if certificateId exists
+    ...options,
+    // Retry behavior for network errors only
+    retry: (failureCount, error) => {
+      console.log(`Retry attempt ${failureCount} for certificate`);
       if (axios.isAxiosError(error) && !error.response) {
         return failureCount < 3;
       }

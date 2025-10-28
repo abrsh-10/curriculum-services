@@ -388,6 +388,7 @@ export function AttendanceComponent({ trainingId }: AttendanceComponentProps) {
       frontIdUrl: student.frontIdUrl,
       backIdUrl: student.backIdUrl,
       signatureUrl: student.signatureUrl,
+      consentFormUrl: student.consentFormUrl,
       pendingTraineeId: student.pendingTraineeId,
       _onAttendanceChange: handleAttendanceChange,
       _onCommentChange: handleCommentChange,

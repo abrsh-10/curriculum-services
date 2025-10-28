@@ -233,6 +233,6 @@ if (typeof window !== 'undefined') {
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next/.*|public/|unauthorized|settings|forgotPassword).*)'
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*|_next/.*|public/|unauthorized|settings|forgotPassword |certificate).*)'
   ],
 };

@@ -32,6 +32,7 @@ export interface AttendanceStudent {
   frontIdUrl?: string | null
   backIdUrl?: string | null
   signatureUrl?: string | null
+  consentFormUrl?: string | null
   pendingTraineeId?: string | null
   _onAttendanceChange?: (id: string, status: 'present' | 'absent') => void
   _onCommentChange?: (id: string, comment: string) => void
@@ -411,6 +412,7 @@ export const createAttendanceColumns = (
                     frontIdUrl={student.frontIdUrl}
                     backIdUrl={student.backIdUrl}
                     signatureUrl={student.signatureUrl}
+                    consentFormUrl={student.consentFormUrl}
                     trigger={
                       <button className="text-xs text-gray-500 hover:text-blue-600 flex items-center gap-1 px-1 py-0.5 rounded hover:bg-blue-50 transition-colors">
                         <Edit2 className="h-3 w-3" />
@@ -429,6 +431,7 @@ export const createAttendanceColumns = (
                   frontIdUrl={student.frontIdUrl}
                   backIdUrl={student.backIdUrl}
                   signatureUrl={student.signatureUrl}
+                  consentFormUrl={student.consentFormUrl}
                   trigger={
                     <Button 
                       variant="outline"

@@ -233,6 +233,10 @@ export function useSubmitStudentId() {
       queryClient.invalidateQueries({
         queryKey: ["student", data.pendingTraineeId]
       });
+      // Also invalidate cohortTrainees to update the attendance view
+      queryClient.invalidateQueries({ 
+        queryKey: ["cohortTrainees"] 
+      });
     },
     onError: (error: AxiosError<ApiErrorResponse>) => {
       let errorMessage = "Failed to upload ID documents. Please try again.";

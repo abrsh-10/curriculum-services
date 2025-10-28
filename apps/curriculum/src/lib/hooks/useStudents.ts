@@ -541,6 +541,8 @@ export function useUploadConsentForm() {
       toast.success('Consent form uploaded successfully')
       queryClient.invalidateQueries({ queryKey: ['student', id] })
       queryClient.invalidateQueries({ queryKey: ['students'] })
+      // Also invalidate cohortTrainees to update the attendance view
+      queryClient.invalidateQueries({ queryKey: ['cohortTrainees'] })
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Failed to upload consent form')
