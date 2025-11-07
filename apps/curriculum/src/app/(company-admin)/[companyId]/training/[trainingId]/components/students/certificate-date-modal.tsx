@@ -27,7 +27,17 @@ export function CertificateDateModal({
 
   const handleConfirm = () => {
     if (selectedDate) {
-      onConfirm(selectedDate.toISOString())
+      // Format date as YYYY-MM-DD without timezone conversion
+      const year = selectedDate.getFullYear()
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
+      const day = String(selectedDate.getDate()).padStart(2, '0')
+      const formattedDate = `${year}-${month}-${day}`
+      
+      console.log('Selected Date Object:', selectedDate)
+      console.log('Formatted Date (YYYY-MM-DD):', formattedDate)
+      console.log('ISO String (old method):', selectedDate.toISOString())
+      
+      onConfirm(formattedDate)
     }
   }
 

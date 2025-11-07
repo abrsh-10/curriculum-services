@@ -21,6 +21,7 @@ import { IdUploadModal } from "./id-upload-modal"
 export interface AttendanceStudent {
   id: string
   firstName: string
+  middleName: string
   lastName: string
   contactPhone: string
   attendance?: 'present' | 'absent'
@@ -175,7 +176,7 @@ export const createAttendanceColumns = (
             {/* <div className="w-8 h-8 rounded-full bg-[rgba(11,117,255,0.6)] flex items-center justify-center text-white">
               {student.firstName?.[0]}{student.lastName?.[0]}
             </div> */}
-            <span className="text-sm">{student.firstName} {student.lastName}</span>
+            <span className="text-sm">{student.firstName} {student.middleName} {student.lastName}</span>
           </div>
         )
       },

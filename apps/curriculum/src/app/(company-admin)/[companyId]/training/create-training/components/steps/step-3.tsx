@@ -43,10 +43,13 @@ export function CreateTrainingStep3({ onNext, onBack, onCancel, initialData, isE
   const startDate = startDateString ? new Date(startDateString) : undefined
   const endDate = endDateString ? new Date(endDateString) : undefined
 
-  // Helper function to format date to YYYY-MM-DD string
+  // Helper function to format date to YYYY-MM-DD string in local timezone
   const formatDateToString = (date: Date | undefined): string => {
     if (!date) return ''
-    return date.toISOString().split('T')[0]
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
   }
 
   const handleDurationTypeChange = (value: "MINUTES" | "HOURS" | "DAYS" | "WEEKS" | "MONTHS") => {

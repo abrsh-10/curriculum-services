@@ -124,6 +124,7 @@ export function CSVImportContent({
   const [fileName, setFileName] = useState<string>("")
   const [rawCsvData, setRawCsvData] = useState<Record<string, string>[]>([])
   const [isDataLoaded, setIsDataLoaded] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
 
   const validateCSVRow = (row: Record<string, string>, index: number): CSVStudentData => {
     const errors: Record<string, string> = {}
@@ -369,8 +370,17 @@ export function CSVImportContent({
       return
     }
 
-    const studentData = csvData.map(convertToStudentFormValues)
-    await onImport(studentData)
+    setIsImporting(true)
+    try {
+      const studentData = csvData.map(convertToStudentFormValues)
+      await onImport(studentData)
+      // Success - parent component will handle navigation
+      // Keep loading state until component unmounts
+    } catch (error) {
+      // Error - stay on page, error toast already shown by mutation
+      console.error("Import failed:", error)
+      setIsImporting(false)
+    }
   }
 
   const updateCsvData = (updatedData: CSVStudentData[]) => {
@@ -421,7 +431,30 @@ export function CSVImportContent({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Loading Overlay during import */}
+      {isImporting && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-8 shadow-2xl max-w-md w-full mx-4">
+            <div className="flex flex-col items-center space-y-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#0B75FF]"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Upload className="h-6 w-6 text-[#0B75FF] animate-pulse" />
+                </div>
+              </div>
+              <div className="text-center space-y-2">
+                <h3 className="text-lg font-semibold text-gray-900">Importing Students</h3>
+                <p className="text-sm text-gray-600">
+                  Please wait while we import {csvData.length} student{csvData.length !== 1 ? 's' : ''}...
+                </p>
+                <p className="text-xs text-gray-500">This may take a few moments</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {csvData.length === 0 && rawCsvData.length === 0 ? (
         <CSVUploadSection onFileSelect={parseCSV} />
       ) : rawCsvData.length > 0 && !isDataLoaded ? (
@@ -464,10 +497,10 @@ export function CSVImportContent({
           <div className="flex justify-end">
             <Button 
               onClick={handleImportStudents}
-              disabled={isSubmitting || csvData.some(row => row.errors && Object.keys(row.errors).length > 0)}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={isImporting || csvData.some(row => row.errors && Object.keys(row.errors).length > 0)}
+              className="bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Importing..." : `Import ${csvData.length} Students`}
+              {isImporting ? "Importing..." : `Import ${csvData.length} Students`}
             </Button>
           </div>
         </>

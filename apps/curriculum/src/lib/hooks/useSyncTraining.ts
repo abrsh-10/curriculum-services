@@ -14,15 +14,15 @@ interface SyncResponse {
 export function useSyncTraining() {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation<SyncResponse, any, void>({
-    mutationFn: async () => {
+  const mutation = useMutation<SyncResponse, any, string>({
+    mutationFn: async (trainingId: string) => {
       const token = getCookie("token");
       if (!token) {
         throw new Error("No authentication token found");
       }
 
       const response = await axios.post<SyncResponse>(
-        `${process.env.NEXT_PUBLIC_API}/training/sync-with-edge`,
+        `${process.env.NEXT_PUBLIC_API}/edge-integration/sync-training/${trainingId}`,
         {},
         {
           headers: { Authorization: `Bearer ${token}` },
@@ -38,12 +38,13 @@ export function useSyncTraining() {
       queryClient.invalidateQueries({ queryKey: ["training"] });
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Failed to sync trainings");
+      toast.error(error?.response?.data?.message || "Failed to sync training");
     },
   });
 
   return {
     syncTraining: mutation.mutate,
+    syncTrainingAsync: mutation.mutateAsync,
     isLoading: mutation.isPending,
   };
 }

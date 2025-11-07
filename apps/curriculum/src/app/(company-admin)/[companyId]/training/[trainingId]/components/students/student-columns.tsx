@@ -81,21 +81,35 @@ export const studentColumnsBase: ColumnDef<Student>[] = [
     header: "Certificate",
     cell: ({ row }) => {
       const certificateUrl = row.original.certificateUrl
+      const isSmsSent = row.original.certificateSmsSent
       
       if (!certificateUrl) {
         return <span className="text-gray-400 text-sm">No Certificate</span>
       }
       
       return (
-        <a 
-          href={certificateUrl} 
-          target="_blank" 
-          rel="noopener noreferrer"
-          className="flex items-center text-xs gap-1.5 text-green-600 hover:text-green-800 underline"
-        >
-          <FileText className="h-4 w-4" />
-          <span>View Certificate</span>
-        </a>
+        <div className="flex items-center gap-2">
+          <a 
+            href={certificateUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-800"
+            title="View Certificate"
+          >
+            <FileText className="h-4 w-4" />
+            <span>View</span>
+          </a>
+          <span 
+            className={`text-[10px] px-2 py-1 rounded whitespace-nowrap ${
+              isSmsSent 
+                ? "bg-green-100 text-green-700" 
+                : "bg-gray-100 text-gray-600"
+            }`}
+            title={isSmsSent ? "SMS notification sent" : "SMS notification not sent"}
+          >
+            {isSmsSent ? "SMS ✓" : "SMS ×"}
+          </span>
+        </div>
       )
     }
   },

@@ -13,6 +13,8 @@ import {
 import { useArchiveTraining, useUnarchiveTraining } from "@/lib/hooks/useTrainings"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { RegistrationLinkGenerateModal } from "@/components/ui/registrationLinkGenerateModal"
+import { useSyncTraining } from "@/lib/hooks/useSyncTraining"
+import { RefreshCw } from "lucide-react"
 
 
 interface TrainingCardProps {
@@ -39,6 +41,7 @@ export function TrainingCard({
   const { mutateAsync: archiveTraining } = useArchiveTraining()
   const { mutateAsync: unarchiveTraining } = useUnarchiveTraining()
   const { isCompanyAdmin, isProjectManager } = useUserRole()
+  const { syncTraining, isLoading: isSyncing } = useSyncTraining()
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -77,6 +80,11 @@ export function TrainingCard({
     }, 100)
   }
 
+  const handleSyncTraining = () => {
+    setIsDropdownOpen(false)
+    syncTraining(id)
+  }
+
   // Show dropdown for both company admin and project manager
   const showDropdown = isCompanyAdmin || isProjectManager
 
@@ -106,10 +114,29 @@ export function TrainingCard({
             </>
           )}
           {(isProjectManager || isCompanyAdmin) && (
-            <DropdownMenuItem onClick={handleGenerateLink} className="text-blue-600">
-              <Link className="mr-2 h-4 w-4" />
-              Generate Link
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem onClick={handleGenerateLink} className="text-blue-600">
+                <Link className="mr-2 h-4 w-4" />
+                Generate Link
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={handleSyncTraining} 
+                className="text-blue-600"
+                disabled={isSyncing}
+              >
+                {isSyncing ? (
+                  <>
+                    <div className="mr-2 h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                    Syncing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Sync Training
+                  </>
+                )}
+              </DropdownMenuItem>
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

@@ -376,6 +376,7 @@ export function AttendanceComponent({ trainingId }: AttendanceComponentProps) {
     return {
       id: student.id,
       firstName: student.firstName || '',
+      middleName: student.middleName || '',
       lastName: student.lastName || '',
       contactPhone: student.contactPhone || '',
       sessionDate: sessions.find(s => s.id === activeSessionId)?.startDate || '',
@@ -419,6 +420,7 @@ export function AttendanceComponent({ trainingId }: AttendanceComponentProps) {
     searchQuery 
       ? attendanceStudents.filter(student => 
           student?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          student?.middleName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           student?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
           student?.contactPhone?.toLowerCase().includes(searchQuery.toLowerCase())
         )

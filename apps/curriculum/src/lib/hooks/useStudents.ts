@@ -55,6 +55,23 @@ export interface Disability {
   }
 }
 
+export interface Region {
+  id: string
+  name: string
+  description: string
+  alternateNames?: {
+    [key: string]: string
+  }
+  country: {
+    id: string
+    name: string
+    description: string
+    alternateNames?: {
+      [key: string]: string
+    }
+  }
+}
+
 export interface Zone {
   id: string
   name: string
@@ -113,6 +130,7 @@ export interface Student {
   backIdUrl: string | null
   signatureUrl: string | null
   certificateUrl: string | null
+  certificateSmsSent: boolean
   selfRegistered: boolean
   cohortName:string
 }
@@ -228,6 +246,17 @@ export interface StudentFilters {
   // marginalizedGroupIds?: string[]
   // hasSmartphone?: boolean
   // hasTrainingExperience?: boolean
+  // Certificate filters
+  isCertified?: boolean
+  isCertificateSmsSent?: boolean
+  // Edge sync filters
+  isCreationSyncedWithEdge?: boolean
+  isEnrollmentSyncedWithEdge?: boolean
+  isPreAssessmentSyncedWithEdge?: boolean
+  isPostAssessmentSyncedWithEdge?: boolean
+  // edge age filters
+  edgeAgeAbove?: number
+  edgeAgeBelow?: number
 }
 
 export function useStudents(
@@ -322,6 +351,35 @@ export function useStudents(
           }
           if (filters.postAssessmentScoreBelow !== undefined) {
             params.append('post-assessment-score-below', filters.postAssessmentScoreBelow.toString())
+          }
+
+          // Certificate filters
+          if (filters.isCertified !== undefined) {
+            params.append('is-certified', filters.isCertified.toString())
+          }
+          if (filters.isCertificateSmsSent !== undefined) {
+            params.append('is-certificate-sms-sent', filters.isCertificateSmsSent.toString())
+          }
+
+          // Edge sync filters
+          if (filters.isCreationSyncedWithEdge !== undefined) {
+            params.append('is-creation-synced-with-edge', filters.isCreationSyncedWithEdge.toString())
+          }
+          if (filters.isEnrollmentSyncedWithEdge !== undefined) {
+            params.append('is-enrollment-synced-with-edge', filters.isEnrollmentSyncedWithEdge.toString())
+          }
+          if (filters.isPreAssessmentSyncedWithEdge !== undefined) {
+            params.append('is-pre-assessment-synced-with-edge', filters.isPreAssessmentSyncedWithEdge.toString())
+          }
+          if (filters.isPostAssessmentSyncedWithEdge !== undefined) {
+            params.append('is-post-assessment-synced-with-edge', filters.isPostAssessmentSyncedWithEdge.toString())
+          }
+          // edge age filters
+          if (filters.edgeAgeAbove !== undefined) {
+            params.append('training-age-above', filters.edgeAgeAbove.toString())
+          }
+          if (filters.edgeAgeBelow !== undefined) {
+            params.append('training-age-below', filters.edgeAgeBelow.toString())
           }
           
           // Commented out for now - can be enabled later
@@ -633,47 +691,67 @@ export function useBulkImportStudents() {
 
 export function useBulkImportStudentsByName(enabled: boolean = true) {
   // Fetch countries (always needed for CSV validation)
-  const { data: countries } = useBaseData('country', {
+  // Use large page size instead of disablePagination to ensure we get all data
+  const countriesQuery = useBaseData('country', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
   // Fetch all regions, zones, and cities without pagination for client-side filtering
   // Only fetch when CSV import view is open to avoid unnecessary API calls
-  const { data: regions } = useBaseData('region', {
+  // Note: These endpoints return nested data (region includes country, zone includes region, etc.)
+  const regionsQuery = useBaseData('region', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: zones } = useBaseData('zone', {
+  const zonesQuery = useBaseData('zone', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: cities } = useBaseData('city', {
+  const citiesQuery = useBaseData('city', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: languages } = useBaseData('language', {
+  const languagesQuery = useBaseData('language', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: academicLevels } = useBaseData('academic-level', {
+  const academicLevelsQuery = useBaseData('academic-level', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: disabilities } = useBaseData('disability', {
+  const disabilitiesQuery = useBaseData('disability', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
   
-  const { data: marginalizedGroups } = useBaseData('marginalized-group', {
+  const marginalizedGroupsQuery = useBaseData('marginalized-group', {
     enabled,
-    disablePagination: true
+    page: 1,
+    pageSize: 10000
   })
+  
+  // Wrap data in objects with .data property for CSVImportView
+  const countries = countriesQuery.data ? { data: countriesQuery.data } : null
+  const regions = regionsQuery.data ? { data: regionsQuery.data } : null
+  const zones = zonesQuery.data ? { data: zonesQuery.data } : null
+  const cities = citiesQuery.data ? { data: citiesQuery.data } : null
+  const languages = languagesQuery.data ? { data: languagesQuery.data } : null
+  const academicLevels = academicLevelsQuery.data ? { data: academicLevelsQuery.data } : null
+  const disabilities = disabilitiesQuery.data ? { data: disabilitiesQuery.data } : null
+  const marginalizedGroups = marginalizedGroupsQuery.data ? { data: marginalizedGroupsQuery.data } : null
 
   const queryClient = useQueryClient()
 

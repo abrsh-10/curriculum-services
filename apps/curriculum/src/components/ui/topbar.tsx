@@ -46,6 +46,10 @@ export default function Topbar() {
 
   // Check if current route needs a back button (any route deeper than training)
   const showBackButton = pathname.includes('/training/') && params.companyId
+  
+  // Get trainingId from URL params if we're on a training page
+  const trainingId = params.trainingId as string | undefined
+  const isOnTrainingPage = !!trainingId && pathname.includes('/training/')
 
   const handleBackClick = () => {
     if (params.companyId) {
@@ -155,11 +159,11 @@ export default function Topbar() {
               </Button>
             )}
 
-            {(isCompanyAdmin || isProjectManager) && (
+            {(isCompanyAdmin || isProjectManager) && isOnTrainingPage && (
               <Button
-                onClick={() => syncTraining()}
+                onClick={() => trainingId && syncTraining(trainingId)}
                 className="bg-[#0A2342] hover:bg-[#14417b] text-white lg:px-6 lg:py-5 px-3 py-1 rounded-3xl md:text-sm text-xs"
-                disabled={isSyncing}
+                disabled={isSyncing || !trainingId}
               >
                 {isSyncing ? 'Syncing...' : 'Sync Training'}
               </Button>

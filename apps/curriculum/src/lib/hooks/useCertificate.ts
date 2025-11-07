@@ -179,17 +179,21 @@ export function useGetCertificateById(
     queryKey: ['certificate', certificateId],
     queryFn: async () => {
       try {
+        // Token is optional for public certificate viewing
         const token = getCookie('token')
-        if (!token) {
-          console.log("No auth token found for certificate fetch");
-          throw new Error("Authentication required");
-        }
         
         console.log(`Fetching certificate: ${certificateId}`);
+        
+        // Build headers - include Authorization only if token exists
+        const headers: Record<string, string> = {}
+        if (token) {
+          headers.Authorization = `Bearer ${token}`
+        }
+        
         const response = await axios.get<SingleCertificateResponse>(
           `${process.env.NEXT_PUBLIC_API}/certificate/${certificateId}`,
           {
-            headers: { Authorization: `Bearer ${token}` }
+            headers
           }
         )
         
