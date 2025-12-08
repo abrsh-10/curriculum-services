@@ -24,10 +24,12 @@ interface StudentsActionsMenuProps {
   onSyncPostAssessmentTraining: () => void
   onSyncEnrollTraineesTraining: () => void
   onSyncCreateTraineesTraining: () => void
+  onSyncCompletionTraining: () => void
   isSyncingPreAssessmentTraining: boolean
   isSyncingPostAssessmentTraining: boolean
   isSyncingEnrollTraineesTraining: boolean
   isSyncingCreateTraineesTraining: boolean
+  isSyncingCompletionTraining: boolean
   
   // Permissions
   hasEditPermission: boolean
@@ -41,10 +43,12 @@ export function StudentsActionsMenu({
   onSyncPostAssessmentTraining,
   onSyncEnrollTraineesTraining,
   onSyncCreateTraineesTraining,
+  onSyncCompletionTraining,
   isSyncingPreAssessmentTraining,
   isSyncingPostAssessmentTraining,
   isSyncingEnrollTraineesTraining,
   isSyncingCreateTraineesTraining,
+  isSyncingCompletionTraining,
   hasEditPermission,
 }: StudentsActionsMenuProps) {
   if (!hasEditPermission && !hasSyncPermission) {
@@ -157,6 +161,24 @@ export function StudentsActionsMenu({
                 <>
                   <UserPlus className="h-4 w-4 text-blue-600" />
                   <span>Sync Created Trainees</span>
+                </>
+              )}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onClick={onSyncCompletionTraining}
+              disabled={isSyncingCompletionTraining}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              {isSyncingCompletionTraining ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Syncing Completion...</span>
+                </>
+              ) : (
+                <>
+                  <FileCheck className="h-4 w-4 text-blue-600" />
+                  <span>Sync Completion</span>
                 </>
               )}
             </DropdownMenuItem>

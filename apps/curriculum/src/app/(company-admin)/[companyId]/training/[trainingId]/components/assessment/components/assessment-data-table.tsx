@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
 import {
   ColumnDef,
   flexRender,
@@ -72,122 +72,30 @@ export function AssessmentDataTable({
 
   // Calculate showing text
   const showingText = useMemo(() => {
-    if (!pagination || data.length === 0) return ""
+    if (!pagination) return "No records to show"
     
     const { currentPage, pageSize, totalElements } = pagination
+    
+    if (totalElements === 0) return "No records to show"
+    
     const startItem = (currentPage - 1) * pageSize + 1
     const endItem = Math.min(currentPage * pageSize, totalElements)
     
     return `Showing ${startItem} to ${endItem} out of ${totalElements} records`
-  }, [pagination, data.length])
-
-  if (isLoading) {
-    return (
-      <div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="bg-gray-50">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {/* Loading skeleton rows */}
-              {Array.from({ length: 5 }).map((_, index) => (
-                <TableRow key={index}>
-                  {columns.map((_, colIndex) => (
-                    <TableCell key={colIndex}>
-                      <div className="h-4 bg-gray-200 rounded animate-pulse" />
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-        {pagination && (
-          <div className="flex items-center justify-between py-4">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <span className="md:text-sm text-xs text-gray-500">Showing</span>
-                <div className="border rounded-md md:text-sm text-xs md:px-2 px-2 py-1 bg-gray-200 animate-pulse w-12 h-6" />
-              </div>
-              <div className="text-xs md:text-sm pl-2 text-gray-400">Loading...</div>
-              <div className="flex gap-1">
-                <Button variant="outline" size="sm" disabled>
-                  <ChevronLeftIcon className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" disabled>1</Button>
-                <Button variant="outline" size="sm" disabled>
-                  <ChevronRightIcon className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  if (data.length === 0) {
-    return (
-      <div>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="bg-gray-50">
-                      {header.isPlaceholder
-                        ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <p className="text-gray-500 text-sm">No assessments found</p>
-                    <p className="text-gray-400 text-xs mt-1">
-                      Try adjusting your search criteria
-                    </p>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </div>
-    )
-  }
+  }, [pagination])
 
   return (
     <div>
-      <div className="rounded-md border">
+      <div className="rounded-md border border-gray-200 bg-white overflow-hidden relative">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="bg-gray-50">
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="bg-gray-50">
+                  <TableHead
+                    key={header.id}
+                    className="py-4 px-5 text-sm font-medium text-gray-500 bg-gray-50"
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
@@ -200,19 +108,35 @@ export function AssessmentDataTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                key={row.id}
-                data-state={row.getIsSelected() && "selected"}
-                className="hover:bg-gray-50/50"
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} className="h-24">
+                  <div className="flex items-center justify-center gap-2">
+                    <ChevronLeftIcon className="h-4 w-4 animate-spin" />
+                    <span>Loading...</span>
+                  </div>
+                </TableCell>
               </TableRow>
-            ))}
+            ) : data && data.length > 0 ? (
+              table.getRowModel().rows.map((row) => (
+                <TableRow key={row.id} className="border-gray-100">
+                  {row.getVisibleCells().map((cell) => (
+                    <TableCell key={cell.id} className="py-4 px-5 text-sm">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
+                  No assessments found.
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </div>
@@ -244,7 +168,7 @@ export function AssessmentDataTable({
             {/* Right side - Pagination Controls */}
             <div className="flex gap-1">
               <Button
-                variant="outline"
+                variant="pagination"
                 size="sm"
                 onClick={() =>
                   pagination.setPage(Math.max(1, pagination.currentPage - 1))
@@ -257,7 +181,7 @@ export function AssessmentDataTable({
                 <Button
                   key={pageNumber}
                   variant="outline"
-                  className={pagination.currentPage === pageNumber ? "border-blue-600 text-blue-600" : ""}
+                  className={pagination.currentPage === pageNumber ? "border-brand text-brand" : ""}
                   size="sm"
                   onClick={() => pagination.setPage(pageNumber)}
                 >
@@ -265,7 +189,7 @@ export function AssessmentDataTable({
                 </Button>
               ))}
               <Button
-                variant="outline"
+                variant="pagination"
                 size="sm"
                 onClick={() => pagination.setPage(pagination.currentPage + 1)}
                 disabled={pagination.currentPage >= pagination.totalPages}

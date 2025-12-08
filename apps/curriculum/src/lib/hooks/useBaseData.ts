@@ -157,8 +157,8 @@ export function useBaseData(type: BaseDataType, options?: BaseDataOptions) {
     staleTime: Infinity, // Never goes stale - base data changes rarely
     gcTime: 24 * 60 * 60 * 1000, // 24 hours in cache
     refetchOnWindowFocus: false,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
+    refetchOnMount: false, // Don't refetch on mount since staleTime is Infinity
+    refetchOnReconnect: false, // Don't refetch on reconnect since data rarely changes
     enabled: options?.enabled !== false
   });
 

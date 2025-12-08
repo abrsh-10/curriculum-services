@@ -21,10 +21,12 @@ interface SidebarProps {
 export default function Sidebar({ navItems, onClick, disabled }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(true)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [loadingHref, setLoadingHref] = useState<string | null>(null)
   const pathname = usePathname()
 
   useEffect(() => {
     setIsMobileMenuOpen(false)
+    setLoadingHref(null) // Reset loading state when navigation completes
   }, [pathname])
 
   // Helper function to check if the current path matches the nav item
@@ -66,26 +68,67 @@ export default function Sidebar({ navItems, onClick, disabled }: SidebarProps) {
       >
         <div className="flex-1 py-8 ">
           <nav className="space-y-3 py-24 px-2">
-            {navItems.map((item, index) => (
-              <Link
-                key={index}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-xs md:text-md",
-                  "hover:bg-gray-300",
-                  isCurrentPath(item.href) ? "text-brand bg-brand-opacity" : "text-gray-700",
-                  // Only center justify on desktop when collapsed
-                  isCollapsed && "md:justify-center",
-                  disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-opacity'
-                )}
-                title={isCollapsed ? item.label : undefined}
-                onClick={onClick}
-              > 
-                {item.icon}
-                {/* Always show labels on mobile, only show on desktop when not collapsed */}
-                {(!isCollapsed || isMobileMenuOpen) && <span>{item.label}</span>}
-              </Link>
-            ))}
+            {navItems.map((item, index) => {
+              const isLoading = loadingHref === item.href
+              const isOtherLinkLoading = loadingHref !== null && !isLoading
+              
+              return (
+                <Link
+                  key={index}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors text-xs md:text-md relative",
+                    "hover:bg-gray-300",
+                    isCurrentPath(item.href) ? "text-brand bg-brand-opacity" : "text-gray-700",
+                    // Only center justify on desktop when collapsed
+                    isCollapsed && "md:justify-center",
+                    disabled || isOtherLinkLoading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-brand-opacity',
+                    isLoading && 'opacity-70'
+                  )}
+                  title={isCollapsed ? item.label : undefined}
+                  onClick={(e) => {
+                    if (disabled || isOtherLinkLoading) {
+                      e.preventDefault()
+                      return
+                    }
+                    
+                    // Don't show loading if clicking the current page
+                    if (!isCurrentPath(item.href)) {
+                      setLoadingHref(item.href)
+                    }
+                    
+                    onClick?.(e)
+                  }}
+                > 
+                  {isLoading ? (
+                    <svg 
+                      className="animate-spin h-[19px] w-[19px] text-current" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" 
+                        cy="12" 
+                        r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                      />
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                  ) : (
+                    item.icon
+                  )}
+                  {/* Always show labels on mobile, only show on desktop when not collapsed */}
+                  {(!isCollapsed || isMobileMenuOpen) && <span>{item.label}</span>}
+                </Link>
+              )
+            })}
           </nav>
         </div>
 

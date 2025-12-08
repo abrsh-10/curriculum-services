@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -9,7 +10,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { MoreVertical, Award, Trash2, FileCheck, GraduationCap, UserPlus } from "lucide-react"
+import { MoreVertical, Award, Trash2, FileCheck, GraduationCap, UserPlus, Send } from "lucide-react"
+import { toast } from "sonner"
 
 interface BulkActionsMenuProps {
   selectedCount: number
@@ -17,18 +19,23 @@ interface BulkActionsMenuProps {
   hasEditPermission: boolean
   isCompanyAdmin: boolean
   isProjectManager: boolean
+  isCertifiedFilterOn: boolean
   onGenerateCertificates: () => void
   onSyncPreAssessment: () => void
   onSyncPostAssessment: () => void
   onSyncEnrollTrainees: () => void
   onSyncCreateTrainees: () => void
+  onSyncCompletion: () => void
   onBulkDelete: () => void
   isGeneratingCertificates: boolean
   isSyncingPreAssessment: boolean
   isSyncingPostAssessment: boolean
   isSyncingEnrollTrainees: boolean
   isSyncingCreateTrainees: boolean
+  isSyncingCompletion: boolean
   isBulkDeleting: boolean
+  onSendCertificateSms: () => void
+  isSendingCertificateSms: boolean
 }
 
 export function BulkActionsMenu({
@@ -37,25 +44,31 @@ export function BulkActionsMenu({
   hasEditPermission,
   isCompanyAdmin,
   isProjectManager,
+  isCertifiedFilterOn,
   onGenerateCertificates,
   onSyncPreAssessment,
   onSyncPostAssessment,
   onSyncEnrollTrainees,
   onSyncCreateTrainees,
+  onSyncCompletion,
   onBulkDelete,
   isGeneratingCertificates,
   isSyncingPreAssessment,
   isSyncingPostAssessment,
   isSyncingEnrollTrainees,
   isSyncingCreateTrainees,
+  isSyncingCompletion,
   isBulkDeleting,
+  onSendCertificateSms,
+  isSendingCertificateSms,
 }: BulkActionsMenuProps) {
+  const [open, setOpen] = React.useState(false)
   if (selectedCount === 0 || !hasEditPermission) {
     return null
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -69,7 +82,11 @@ export function BulkActionsMenu({
         {/* Generate Certificate */}
         {(isCompanyAdmin || isProjectManager) && selectedCount <= 10 && (
           <DropdownMenuItem
-            onClick={onGenerateCertificates}
+            onSelect={() => {
+              // Ensure menu closes before opening modal to avoid any lingering portals
+              setOpen(false)
+              onGenerateCertificates()
+            }}
             disabled={isGeneratingCertificates}
             className="flex items-center gap-2 cursor-pointer"
           >
@@ -87,10 +104,41 @@ export function BulkActionsMenu({
           </DropdownMenuItem>
         )}
         
+        {/* Send Certificate SMS */}
+        {(isCompanyAdmin || isProjectManager) && (
+          <DropdownMenuItem
+            onSelect={() => {
+              setOpen(false)
+              if (!isCertifiedFilterOn) {
+                toast.error("Turn on the 'Is Certified?' filter to send certificate SMS")
+                return
+              }
+              onSendCertificateSms()
+            }}
+            disabled={isSendingCertificateSms}
+            className="flex items-center gap-2 cursor-pointer"
+          >
+            {isSendingCertificateSms ? (
+              <>
+                <div className="w-4 h-4 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
+                <span>Sending SMS...</span>
+              </>
+            ) : (
+              <>
+                <Send className="h-4 w-4 text-green-600" />
+                <span>Send Certificate SMS</span>
+              </>
+            )}
+          </DropdownMenuItem>
+        )}
+        
         {/* Delete */}
         {selectedCount > 1 && (
           <DropdownMenuItem
-            onClick={onBulkDelete}
+            onSelect={() => {
+              setOpen(false)
+              onBulkDelete()
+            }}
             disabled={isBulkDeleting}
             className="flex items-center gap-2 cursor-pointer text-red-600 focus:text-red-600"
           >
@@ -116,7 +164,10 @@ export function BulkActionsMenu({
             ) : null}
             <DropdownMenuLabel>Sync Selected ({selectedCount})</DropdownMenuLabel>
             <DropdownMenuItem
-              onClick={onSyncPreAssessment}
+              onSelect={() => {
+                setOpen(false)
+                onSyncPreAssessment()
+              }}
               disabled={isSyncingPreAssessment}
               className="flex items-center gap-2 cursor-pointer"
             >
@@ -134,7 +185,10 @@ export function BulkActionsMenu({
             </DropdownMenuItem>
             
             <DropdownMenuItem
-              onClick={onSyncPostAssessment}
+              onSelect={() => {
+                setOpen(false)
+                onSyncPostAssessment()
+              }}
               disabled={isSyncingPostAssessment}
               className="flex items-center gap-2 cursor-pointer"
             >
@@ -152,7 +206,10 @@ export function BulkActionsMenu({
             </DropdownMenuItem>
             
             <DropdownMenuItem
-              onClick={onSyncEnrollTrainees}
+              onSelect={() => {
+                setOpen(false)
+                onSyncEnrollTrainees()
+              }}
               disabled={isSyncingEnrollTrainees}
               className="flex items-center gap-2 cursor-pointer"
             >
@@ -170,7 +227,10 @@ export function BulkActionsMenu({
             </DropdownMenuItem>
             
             <DropdownMenuItem
-              onClick={onSyncCreateTrainees}
+              onSelect={() => {
+                setOpen(false)
+                onSyncCreateTrainees()
+              }}
               disabled={isSyncingCreateTrainees}
               className="flex items-center gap-2 cursor-pointer"
             >
@@ -183,6 +243,27 @@ export function BulkActionsMenu({
                 <>
                   <UserPlus className="h-4 w-4 text-blue-600" />
                   <span>Sync Created Trainees</span>
+                </>
+              )}
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              onSelect={() => {
+                setOpen(false)
+                onSyncCompletion()
+              }}
+              disabled={isSyncingCompletion}
+              className="flex items-center gap-2 cursor-pointer"
+            >
+              {isSyncingCompletion ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                  <span>Syncing Completion...</span>
+                </>
+              ) : (
+                <>
+                  <FileCheck className="h-4 w-4 text-blue-600" />
+                  <span>Sync Completion</span>
                 </>
               )}
             </DropdownMenuItem>

@@ -43,6 +43,7 @@ interface AddAlternateNameDialogProps {
   onAddAlternateName: (data: { itemId: string; languageData: AlternateLanguageName }, onSuccess?: () => void) => void;
   isLoading?: boolean;
   existingLanguages?: string[];
+  existingAlternateNames?: { [languageCode: string]: string };
 }
 
 export function AddAlternateNameDialog({
@@ -52,14 +53,30 @@ export function AddAlternateNameDialog({
   onAddAlternateName,
   isLoading,
   existingLanguages = [],
+  existingAlternateNames = {},
 }: AddAlternateNameDialogProps) {
   const [languageCode, setLanguageCode] = useState("");
   const [otherLanguageName, setOtherLanguageName] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
 
   const resetForm = () => {
     setLanguageCode("");
     setOtherLanguageName("");
+    setIsEditingExisting(false);
+  };
+
+  // Handle language selection change
+  const handleLanguageCodeChange = (value: string) => {
+    setLanguageCode(value);
+    // Pre-populate if editing existing alternate name
+    if (existingAlternateNames[value]) {
+      setOtherLanguageName(existingAlternateNames[value]);
+      setIsEditingExisting(true);
+    } else {
+      setOtherLanguageName("");
+      setIsEditingExisting(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,13 +97,11 @@ export function AddAlternateNameDialog({
   const isSubmitDisabled = () => {
     if (isLoading) return true;
     if (!languageCode || !otherLanguageName) return true;
-    if (existingLanguages.includes(languageCode)) return true;
     return false;
   };
 
-  const availableLanguages = LANGUAGE_CODES.filter(
-    (lang) => !existingLanguages.includes(lang.value)
-  );
+  // Show all languages (both existing and new ones can be selected)
+  const availableLanguages = LANGUAGE_CODES;
 
   return (
     <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -103,30 +118,38 @@ export function AddAlternateNameDialog({
       <DialogContent className="w-full max-w-md p-0">
         <DialogHeader className="px-6 pt-6 border-b-[0.3px] border-[#CED4DA] pb-4">
           <DialogTitle>
-            Add Alternate Language Name
+            {isEditingExisting ? "Edit" : "Add"} Alternate Language Name
           </DialogTitle>
           <p className="text-sm text-gray-600 mt-1">
-            Adding alternate name for: <span className="font-medium">{itemName}</span>
+            {isEditingExisting ? "Editing" : "Adding"} alternate name for: <span className="font-medium">{itemName}</span>
           </p>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4 p-6">
           <div className="grid gap-2">
             <Label htmlFor="languageCode">Language</Label>
-            <Select value={languageCode} onValueChange={setLanguageCode}>
+            <Select value={languageCode} onValueChange={handleLanguageCodeChange}>
               <SelectTrigger>
                 <SelectValue placeholder="Select language" />
               </SelectTrigger>
               <SelectContent>
-                {availableLanguages.map((lang) => (
-                  <SelectItem key={lang.value} value={lang.value}>
-                    {lang.label}
-                  </SelectItem>
-                ))}
+                {availableLanguages.map((lang) => {
+                  const hasExisting = existingLanguages.includes(lang.value);
+                  return (
+                    <SelectItem key={lang.value} value={lang.value}>
+                      <div className="flex items-center gap-2">
+                        <span>{lang.label}</span>
+                        {hasExisting && (
+                          <span className="text-xs text-blue-600">(existing)</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
-            {availableLanguages.length === 0 && (
-              <p className="text-sm text-gray-500">
-                All supported languages already have alternate names.
+            {isEditingExisting && (
+              <p className="text-sm text-blue-600">
+                You are editing an existing alternate name. Saving will update it.
               </p>
             )}
           </div>
@@ -158,7 +181,7 @@ export function AddAlternateNameDialog({
               {isLoading ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : null}
-              Add
+              {isEditingExisting ? "Update" : "Add"}
             </Button>
           </div>
         </form>

@@ -71,19 +71,23 @@ interface StudentsHeaderProps {
   onSyncPostAssessment: () => void
   onSyncEnrollTrainees: () => void
   onSyncCreateTrainees: () => void
+  onSyncCompletion: () => void
   isSyncingPreAssessment: boolean
   isSyncingPostAssessment: boolean
   isSyncingEnrollTrainees: boolean
   isSyncingCreateTrainees: boolean
+  isSyncingCompletion: boolean
   // Sync handlers for all students
   onSyncPreAssessmentTraining: () => void
   onSyncPostAssessmentTraining: () => void
   onSyncEnrollTraineesTraining: () => void
   onSyncCreateTraineesTraining: () => void
+  onSyncCompletionTraining: () => void
   isSyncingPreAssessmentTraining: boolean
   isSyncingPostAssessmentTraining: boolean
   isSyncingEnrollTraineesTraining: boolean
   isSyncingCreateTraineesTraining: boolean
+  isSyncingCompletionTraining: boolean
   // Bulk actions
   isCompanyAdmin: boolean
   isProjectManager: boolean
@@ -91,6 +95,9 @@ interface StudentsHeaderProps {
   onBulkDelete: () => void
   isGeneratingCertificates: boolean
   isBulkDeleting: boolean
+  // Certificate SMS
+  onSendCertificateSms: () => void
+  isSendingCertificateSms: boolean
 }
 
 export function StudentsHeader({
@@ -113,24 +120,30 @@ export function StudentsHeader({
   onSyncPostAssessment,
   onSyncEnrollTrainees,
   onSyncCreateTrainees,
+  onSyncCompletion,
   isSyncingPreAssessment,
   isSyncingPostAssessment,
   isSyncingEnrollTrainees,
   isSyncingCreateTrainees,
+  isSyncingCompletion,
   onSyncPreAssessmentTraining,
   onSyncPostAssessmentTraining,
   onSyncEnrollTraineesTraining,
   onSyncCreateTraineesTraining,
+  onSyncCompletionTraining,
   isSyncingPreAssessmentTraining,
   isSyncingPostAssessmentTraining,
   isSyncingEnrollTraineesTraining,
   isSyncingCreateTraineesTraining,
+  isSyncingCompletionTraining,
   isCompanyAdmin,
   isProjectManager,
   onGenerateCertificates,
   onBulkDelete,
   isGeneratingCertificates,
   isBulkDeleting,
+  onSendCertificateSms,
+  isSendingCertificateSms,
 }: StudentsHeaderProps) {
   return (
     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
@@ -179,18 +192,23 @@ export function StudentsHeader({
               hasEditPermission={hasEditPermission}
               isCompanyAdmin={isCompanyAdmin}
               isProjectManager={isProjectManager}
+              isCertifiedFilterOn={filters?.isCertified === true}
               onGenerateCertificates={onGenerateCertificates}
               onSyncPreAssessment={onSyncPreAssessment}
               onSyncPostAssessment={onSyncPostAssessment}
               onSyncEnrollTrainees={onSyncEnrollTrainees}
               onSyncCreateTrainees={onSyncCreateTrainees}
+              onSyncCompletion={onSyncCompletion}
               onBulkDelete={onBulkDelete}
               isGeneratingCertificates={isGeneratingCertificates}
               isSyncingPreAssessment={isSyncingPreAssessment}
               isSyncingPostAssessment={isSyncingPostAssessment}
               isSyncingEnrollTrainees={isSyncingEnrollTrainees}
               isSyncingCreateTrainees={isSyncingCreateTrainees}
+              isSyncingCompletion={isSyncingCompletion}
               isBulkDeleting={isBulkDeleting}
+              onSendCertificateSms={onSendCertificateSms}
+              isSendingCertificateSms={isSendingCertificateSms}
             />
             
             <StudentsActionsMenu
@@ -201,10 +219,12 @@ export function StudentsHeader({
               onSyncPostAssessmentTraining={onSyncPostAssessmentTraining}
               onSyncEnrollTraineesTraining={onSyncEnrollTraineesTraining}
               onSyncCreateTraineesTraining={onSyncCreateTraineesTraining}
+              onSyncCompletionTraining={onSyncCompletionTraining}
               isSyncingPreAssessmentTraining={isSyncingPreAssessmentTraining}
               isSyncingPostAssessmentTraining={isSyncingPostAssessmentTraining}
               isSyncingEnrollTraineesTraining={isSyncingEnrollTraineesTraining}
               isSyncingCreateTraineesTraining={isSyncingCreateTraineesTraining}
+              isSyncingCompletionTraining={isSyncingCompletionTraining}
               hasEditPermission={hasEditPermission}
             />
           </div>

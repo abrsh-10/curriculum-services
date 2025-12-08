@@ -17,6 +17,7 @@ export default function CompanyAdminTraining() {
   const params = useParams()
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [isNavigating, setIsNavigating] = useState(false)
   const { data, isLoading, error, refetch } = usePaginatedTrainings({ page, pageSize })
   const { isPending: isArchiving } = useArchiveTraining()
   const { isCompanyAdmin } = useUserRole()
@@ -41,6 +42,7 @@ export default function CompanyAdminTraining() {
   }, [])
 
   const handleCreateTraining = () => {
+    setIsNavigating(true)
     router.push(`/${params.companyId}/training/create-training`)
   }
 
@@ -115,9 +117,36 @@ export default function CompanyAdminTraining() {
      
             <Button 
               onClick={handleCreateTraining}
-              className="bg-[#0B75FF] hover:bg-[#0052CC] text-white px-6 py-5"
+              disabled={isNavigating}
+              className="bg-[#0B75FF] hover:bg-[#0052CC] disabled:opacity-70 disabled:cursor-not-allowed text-white px-6 py-5 flex items-center gap-2"
             >
-              Create Training
+              {isNavigating ? (
+                <>
+                  <svg 
+                    className="animate-spin h-5 w-5 text-white" 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    fill="none" 
+                    viewBox="0 0 24 24"
+                  >
+                    <circle 
+                      className="opacity-25" 
+                      cx="12" 
+                      cy="12" 
+                      r="10" 
+                      stroke="currentColor" 
+                      strokeWidth="4"
+                    />
+                    <path 
+                      className="opacity-75" 
+                      fill="currentColor" 
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  <span>Loading...</span>
+                </>
+              ) : (
+                'Create Training'
+              )}
             </Button>
       
         </div>

@@ -286,7 +286,10 @@ export function ModuleView({
               </DropdownMenuItem>
               <DropdownMenuItem 
                 className="text-red-600"
-                onClick={() => setModuleToDelete(module)}
+                onClick={() => {
+                  // Delay to allow dropdown to close before opening dialog
+                  setTimeout(() => setModuleToDelete(module), 0)
+                }}
               >
                 Delete
               </DropdownMenuItem>
@@ -469,7 +472,10 @@ export function ModuleView({
                     </DropdownMenuItem>
                     <DropdownMenuItem 
                       className="text-red-600"
-                      onClick={() => setModuleToDelete(subModule)}
+                      onClick={() => {
+                        // Delay to allow dropdown to close before opening dialog
+                        setTimeout(() => setModuleToDelete(subModule), 0)
+                      }}
                     >
                       Delete
                     </DropdownMenuItem>

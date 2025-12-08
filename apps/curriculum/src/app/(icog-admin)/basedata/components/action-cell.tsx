@@ -67,6 +67,7 @@ export function ActionCell({ row, activeTab }: { row: any; activeTab: string }) 
   }
 
   const existingLanguages = item.alternateNames ? Object.keys(item.alternateNames) : [];
+  const existingAlternateNames = item.alternateNames || {};
 
   return (
     <>
@@ -79,6 +80,7 @@ export function ActionCell({ row, activeTab }: { row: any; activeTab: string }) 
             onAddAlternateName={handleAddAlternateName}
             isLoading={isAddingAlternateName}
             existingLanguages={existingLanguages}
+            existingAlternateNames={existingAlternateNames}
           />
         )}
         <Button 

@@ -40,8 +40,8 @@ export function GenderDistributionChart({
   // Calculate total for percentage
   const total = chartData.reduce((sum, item) => sum + item.value, 0);
   
-  // Define chart colors
-  const COLORS = ['#0B75FF', '#8EEDF7', '#FF9066', '#657153'];
+  // Define chart colors with brand palette
+  const COLORS = ['#1D4ED8', '#0A2342', '#B6FF5D', '#E5E5E5'];
   
   // Custom rendering for labels to make them prettier
   const renderCustomizedLabel = ({
@@ -106,45 +106,74 @@ export function GenderDistributionChart({
   };
   
   return (
-    <Card className={cn("p-5 shadow-sm rounded-xl overflow-hidden", className)}>
-      <h3 className="text-lg font-semibold mb-5 text-gray-800">{title}</h3>
+    <Card className={cn("p-6 shadow-lg rounded-2xl overflow-hidden border-0 bg-gradient-to-br from-white to-gray-50", className)}>
+      <h3 className="text-lg font-bold mb-6 text-gray-900">{title}</h3>
       
       {chartData.length === 0 ? (
         <div className="h-80 w-full flex justify-center items-center text-gray-500">
           No gender data available
         </div>
       ) : (
-        <div className="h-80 w-full">
+        <div className="h-80 w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={chartData}
                 cx="50%"
                 cy="50%"
-                innerRadius={75}
-                outerRadius={100}
+                innerRadius={80}
+                outerRadius={110}
                 fill="#8884d8"
-                paddingAngle={5}
+                paddingAngle={3}
                 dataKey="value"
                 labelLine={false}
                 label={renderCustomizedLabel}
-                stroke="#fff" // white border around slices
-                strokeWidth={2}
+                stroke="#fff"
+                strokeWidth={3}
+                isAnimationActive={false}
               >
                 {chartData.map((entry, index) => (
                   <Cell 
                     key={`cell-${index}`} 
                     fill={COLORS[index % COLORS.length]} 
-                    style={{ filter: 'drop-shadow(0px 0px 2px rgba(0, 0, 0, 0.2))' }}
+                    style={{ 
+                      filter: 'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.15))',
+                      transition: 'all 0.3s ease'
+                    }}
                   />
                 ))}
               </Pie>
+              <text 
+                x="50%" 
+                y="45%" 
+                textAnchor="middle" 
+                dominantBaseline="middle" 
+                className="text-3xl font-bold fill-gray-900"
+              >
+                {total}
+              </text>
+              <text 
+                x="50%" 
+                y="55%" 
+                textAnchor="middle" 
+                dominantBaseline="middle" 
+                className="text-sm font-medium fill-gray-500"
+              >
+                Total Trainees
+              </text>
               <Tooltip
                 formatter={(value: number) => [`${value} trainees (${((value / total) * 100).toFixed(0)}%)`, 'Count']}
                 contentStyle={{ 
-                  borderRadius: '8px', 
-                  boxShadow: '0 2px 10px rgba(0, 0, 0, 0.1)', 
-                  padding: '10px 14px' 
+                  borderRadius: '12px', 
+                  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)', 
+                  padding: '12px 16px',
+                  border: '2px solid #e5e7eb',
+                  backgroundColor: '#ffffff',
+                  fontWeight: '600'
+                }}
+                labelStyle={{
+                  color: '#111827',
+                  fontWeight: 'bold'
                 }}
               />
               <Legend 

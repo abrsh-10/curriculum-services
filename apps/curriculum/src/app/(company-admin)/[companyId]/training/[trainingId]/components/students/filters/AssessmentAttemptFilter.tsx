@@ -1,11 +1,10 @@
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import { TriStateFilter } from "./TriStateFilter"
 
 interface AssessmentAttemptFilterProps {
   hasPreAssessmentAttempt?: boolean
   hasPostAssessmentAttempt?: boolean
-  onPreAssessmentChange: (checked: boolean) => void
-  onPostAssessmentChange: (checked: boolean) => void
+  onPreAssessmentChange: (value: boolean | undefined) => void
+  onPostAssessmentChange: (value: boolean | undefined) => void
 }
 
 export function AssessmentAttemptFilter({ 
@@ -17,39 +16,19 @@ export function AssessmentAttemptFilter({
   return (
     <div className="space-y-3">
       <h4 className="text-base font-semibold">Assessment Attempts</h4>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="pre-assessment"
-            checked={hasPreAssessmentAttempt === true}
-            onCheckedChange={(checked) => 
-              onPreAssessmentChange(checked ? true : false)
-            }
-            className="h-5 w-5 rounded-[4px] border-gray-300 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-          />
-          <Label 
-            htmlFor="pre-assessment"
-            className="text-base font-normal"
-          >
-            Has Pre-Assessment
-          </Label>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="post-assessment"
-            checked={hasPostAssessmentAttempt === true}
-            onCheckedChange={(checked) => 
-              onPostAssessmentChange(checked ? true : false)
-            }
-            className="h-5 w-5 rounded-[4px] border-gray-300 data-[state=checked]:bg-blue-500 data-[state=checked]:border-blue-500"
-          />
-          <Label 
-            htmlFor="post-assessment"
-            className="text-base font-normal"
-          >
-            Has Post-Assessment
-          </Label>
-        </div>
+      <div className="space-y-4">
+        <TriStateFilter
+          id="pre-assessment"
+          label="Has Pre-Assessment"
+          value={hasPreAssessmentAttempt}
+          onChange={onPreAssessmentChange}
+        />
+        <TriStateFilter
+          id="post-assessment"
+          label="Has Post-Assessment"
+          value={hasPostAssessmentAttempt}
+          onChange={onPostAssessmentChange}
+        />
       </div>
     </div>
   )

@@ -2,9 +2,18 @@
 
 import { AnalyticsDashboard } from "@/components/dashboard/analytics-dashboard";
 import { useUserRole } from "@/lib/hooks/useUserRole";
+import { useAnalytics } from "@/lib/hooks/useAnalytics";
+import { Loading } from "@/components/ui/loading";
 
 export default function CompanyAdminDashboard() {
-  const { isCompanyAdmin } = useUserRole();
+  const { isCompanyAdmin, isLoading: isLoadingRole } = useUserRole();
+  const { isLoading: isLoadingAnalytics } = useAnalytics();
+
+  // Show loading while checking role or loading analytics data
+  if (isLoadingRole || isLoadingAnalytics) {
+    return <Loading />;
+  }
+
   if (!isCompanyAdmin) {
     return (
       <div className="flex min-h-screen lg:px-16 md:px-14 px-4 ">

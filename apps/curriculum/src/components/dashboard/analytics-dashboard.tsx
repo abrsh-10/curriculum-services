@@ -26,28 +26,19 @@ import {
   Briefcase, 
   Blocks,
 } from "lucide-react";
-import { useRouter, useParams } from "next/navigation";
-import { ChatButton } from "./chat-button";
+// import { useRouter, useParams } from "next/navigation";
+// import { ChatButton } from "./chat-button";
 
 export function AnalyticsDashboard() {
-  const { data, isLoading, error } = useAnalytics();
-  const router = useRouter();
-  const params = useParams();
-  const companyId = params?.companyId as string;
+  const { data, error } = useAnalytics();
+  // const router = useRouter();
+  // const params = useParams();
+  // const companyId = params?.companyId as string;
   
   // Handle navigation to chat page
-  const handleNavigateToChat = () => {
-    router.push(`/${companyId}/analytics-chat`);
-  };
-  
-  // Handle loading state
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-brand"></div>
-      </div>
-    );
-  }
+  // const handleNavigateToChat = () => {
+  //   router.push(`/${companyId}/analytics-chat`);
+  // };
   
   // Handle error state
   if (error || !data) {
@@ -88,11 +79,11 @@ export function AnalyticsDashboard() {
     ? Math.round((completedSessions / totalSessions) * 100) 
     : 0;
   
-  // Session metrics data for the new pie chart
+  // Session metrics data for the new pie chart with brand colors
   const sessionMetricsData = [
-    { name: "Total", value: totalSessions, color: "#0B75FF" },
-    { name: "Active", value: activeSessions, color: "#8EEDF7" },
-    { name: "Completed", value: completedSessions, color: "#FF9066" },
+    { name: "Total", value: totalSessions, color: "#0A2342" },
+    { name: "Active", value: activeSessions, color: "#1D4ED8" },
+    { name: "Completed", value: completedSessions, color: "#B6FF5D" },
   ];
   
   return (
@@ -111,51 +102,51 @@ export function AnalyticsDashboard() {
             <StatsCard 
               title="Total Trainees"
               value={traineeCount.toString()}
-              icon={<Users className="h-6 w-6 text-blue-600" />}
+              icon={<Users className="h-6 w-6 text-white" />}
               className=""
             />
             <StatsCard 
               title="Completed Trainees"
               value={completedCount.toString()}
               description={`${completionPercentage}% completion rate`}
-              icon={<Award className="h-6 w-6 text-green-600" />}
-              className="bg-white"
+              icon={<Award className="h-6 w-6 text-white" />}
+              className=""
             />
             <StatsCard 
               title="Active Trainings"
               value={activeTrainings.toString()}
               description={`With registered trainees`}
-              icon={<Briefcase className="h-6 w-6 text-orange-600" />}
-              className="bg-white"
+              icon={<Briefcase className="h-6 w-6 text-white" />}
+              className=""
             />
             <StatsCard 
               title="Total Sessions"
               value={totalSessions.toString()}
               description={`${sessionCompletionPercentage}% completed`}
-              icon={<Blocks className="h-6 w-6 text-purple-600" />}
-              className="bg-white"
+              icon={<Blocks className="h-6 w-6 text-white" />}
+              className=""
             />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <TrainingCompletionChart
               data={data.traineeCountPerTraining}
-              className="bg-white"
+              className=""
             />
             <GenderDistributionChart
               data={data.traineeCountPerTraining}
-              className="bg-white"
+              className=""
             />
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <SessionStatusChart
               data={data.sessionCountPerTraining}
-              className="bg-white"
+              className=""
             />
             <DeliveryMethodChart
               data={data.sessionCountPerTraining}
-              className="bg-white"
+              className=""
               title="Training Delivery Methods"
             />
           </div>
@@ -163,19 +154,19 @@ export function AnalyticsDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <AgeDistributionChart
               data={data.traineeCountPerTraining}
-              className="bg-white"
+              className=""
             />
             <SessionMetricsChart
               data={sessionMetricsData}
-              className="bg-white"
+              className=""
               title="Session Metrics"
             />
           </div>
         </div>
       </div>
       
-      {/* Chat button that navigates to the chat route */}
-      <ChatButton onClick={handleNavigateToChat} />
+      {/* Chat button disabled for now */}
+      {/* <ChatButton onClick={handleNavigateToChat} /> */}
     </div>
   );
 } 

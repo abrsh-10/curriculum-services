@@ -46,18 +46,26 @@ export function SessionStatusChart({
     if (active && payload && payload.length) {
       const training = chartData.find(item => item.name === label);
       
+      const fullName: string = (training?.fullName ?? label ?? "");
+      const truncatedName = fullName.length > 40 
+        ? `${fullName.substring(0, 40)}...` 
+        : fullName;
+      
       return (
-        <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg">
-          <p className="font-medium text-sm text-gray-900">
-            {training?.fullName || label}
+        <div className="bg-white p-4 border-2 border-gray-200 shadow-2xl rounded-xl max-w-xs">
+          <p className="font-bold text-sm text-gray-900 mb-2 break-words">
+            {truncatedName}
           </p>
-          <div className="mt-2 space-y-1">
+          <div className="mt-2 space-y-1.5">
             {payload.map((entry, index) => (
-              <p key={index} className="text-sm" style={{ color: entry.color }}>
-                {`${entry.name}: ${entry.value} sessions`}
-              </p>
+              <div key={index} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: entry.color }}></div>
+                <p className="text-sm font-medium text-gray-800">
+                  {`${entry.name}: ${entry.value}`}
+                </p>
+              </div>
             ))}
-            <p className="text-sm text-gray-700 border-t border-gray-200 pt-1 mt-1">
+            <p className="text-sm font-semibold text-gray-900 border-t-2 border-gray-200 pt-2 mt-2">
               {`Total: ${training?.total} sessions`}
             </p>
           </div>
@@ -69,8 +77,8 @@ export function SessionStatusChart({
   };
   
   return (
-    <Card className={cn("p-5 shadow-sm rounded-xl overflow-hidden", className)}>
-      <h3 className="text-lg font-semibold mb-5 text-gray-800">{title}</h3>
+    <Card className={cn("p-6 shadow-lg rounded-2xl overflow-hidden border-0 bg-gradient-to-br from-white to-gray-50", className)}>
+      <h3 className="text-lg font-bold mb-6 text-gray-900">{title}</h3>
       
       {chartData.length === 0 ? (
         <div className="h-64 w-full flex justify-center items-center text-gray-500">
@@ -93,25 +101,26 @@ export function SessionStatusChart({
                 strokeDasharray="3 3" 
                 horizontal={true} 
                 vertical={false} 
-                stroke="#E5E7EB" 
+                stroke="#E5E5E5"
+                opacity={0.5}
               />
               <XAxis 
                 type="number" 
-                tick={{ fontSize: 12, fill: '#6B7280' }}
-                axisLine={{ stroke: '#D1D5DB' }}
+                tick={{ fontSize: 13, fill: '#374151', fontWeight: 500 }}
+                axisLine={{ stroke: '#E5E5E5' }}
                 tickLine={false}
               />
               <YAxis 
                 type="category" 
                 dataKey="name" 
-                width={100}
-                tick={{ fontSize: 12, fill: '#6B7280' }}
-                axisLine={{ stroke: '#D1D5DB' }}
+                width={120}
+                tick={{ fontSize: 12, fill: '#374151', fontWeight: 500 }}
+                axisLine={{ stroke: '#E5E5E5' }}
                 tickLine={false}
               />
               <Tooltip 
                 content={<CustomTooltip />} 
-                cursor={{ fill: 'rgba(224, 231, 255, 0.3)' }} 
+                cursor={{ fill: 'rgba(29, 78, 216, 0.08)' }} 
               />
               <Legend 
                 iconType="circle"
@@ -122,25 +131,25 @@ export function SessionStatusChart({
                 dataKey="active" 
                 name="Active" 
                 stackId="a" 
-                fill="#0B75FF" 
+                fill="#1D4ED8" 
                 radius={[0, 0, 0, 0]} 
-                animationDuration={1500}
+                isAnimationActive={false}
               />
               <Bar 
                 dataKey="completed" 
                 name="Completed" 
                 stackId="a" 
-                fill="#8EEDF7" 
+                fill="#B6FF5D" 
                 radius={[0, 0, 0, 0]} 
-                animationDuration={1500}
+                isAnimationActive={false}
               />
               <Bar 
                 dataKey="cancelled" 
                 name="Cancelled" 
                 stackId="a" 
-                fill="#8A2D3B" 
-                radius={[0, 4, 4, 0]} 
-                animationDuration={1500}
+                fill="#E5E5E5" 
+                radius={[0, 8, 8, 0]} 
+                isAnimationActive={false}
               />
             </BarChart>
           </ResponsiveContainer>

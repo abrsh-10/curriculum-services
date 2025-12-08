@@ -331,3 +331,81 @@ export function useSyncCreateTraineesTraining() {
   };
 }
 
+// Sync Completion (selected students)
+export function useSyncCompletion() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation<SyncResponse, any, SyncWithTraineeIdsParams>({
+    mutationFn: async ({ traineeIds }) => {
+      const token = getCookie("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.post<SyncResponse>(
+        `${process.env.NEXT_PUBLIC_API}/edge-integration/sync-complete-trainees`,
+        { traineeIds },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return response.data;
+    },
+    onSuccess: (data, variables) => {
+      const count = variables.traineeIds.length;
+      toast.success(
+        data?.message || 
+        `Successfully synced completion for ${count} ${count === 1 ? "student" : "students"}`
+      );
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to sync completion");
+    },
+  });
+
+  return {
+    syncCompletion: mutation.mutate,
+    syncCompletionAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+
+// Sync Completion (all in training)
+export function useSyncCompletionTraining() {
+  const queryClient = useQueryClient();
+
+  const mutation = useMutation<SyncResponse, any, SyncTrainingParams>({
+    mutationFn: async ({ trainingId }) => {
+      const token = getCookie("token");
+      if (!token) {
+        throw new Error("No authentication token found");
+      }
+
+      const response = await axios.post<SyncResponse>(
+        `${process.env.NEXT_PUBLIC_API}/edge-integration/sync-completion/training/${trainingId}`,
+        {},
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      return response.data;
+    },
+    onSuccess: (data) => {
+      toast.success(data?.message || "Successfully synced all completions for training");
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || "Failed to sync completions");
+    },
+  });
+
+  return {
+    syncCompletionTraining: mutation.mutate,
+    syncCompletionTrainingAsync: mutation.mutateAsync,
+    isLoading: mutation.isPending,
+  };
+}
+

@@ -15,7 +15,10 @@ export const useBusinessTypes = () => {
         }
       })
       return response.data
-    }
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes - business types are static/rarely change
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   const { data: industryTypes, isLoading: isLoadingIndustryTypes } = useQuery<IndustryTypesResponse>({
@@ -28,7 +31,10 @@ export const useBusinessTypes = () => {
         }
       })
       return response.data
-    }
+    },
+    staleTime: 1000 * 60 * 30, // 30 minutes - industry types are static/rarely change
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
 
   return {

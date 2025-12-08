@@ -11,7 +11,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { useUserProfile } from "@/lib/hooks/useUserProfile"
 import { clearAuthData } from "@/lib/utils/auth"
 import { useEffect, useState } from 'react'
 import { EditProfileModal } from "@/components/modals/edit-profile-modal"
@@ -27,6 +26,7 @@ export default function Topbar() {
   
   const [mounted, setMounted] = useState(false)
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false)
+  const [isCreatingTraining, setIsCreatingTraining] = useState(false)
   const { isIcogAdmin, isCompanyAdmin, role, isProjectManager } = useUserRole()
     
   const decoded = typeof window !== 'undefined' ? decodeJWT(getCookie('token') || null) : null
@@ -34,9 +34,6 @@ export default function Topbar() {
   const isCompanyAdminRole = mounted && isCompanyAdmin
 
   // Hooks before any conditional returns
-  const { data: user } = useUserProfile({
-    enabled: isCompanyAdminRole
-  })
   const { data: verificationData } = useVerificationStatus({
     enabled: isCompanyAdminRole
   })
@@ -62,6 +59,13 @@ export default function Topbar() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  // Reset loading state when pathname changes
+  useEffect(() => {
+    if (pathname.includes('/training/create-training')) {
+      setIsCreatingTraining(false)
+    }
+  }, [pathname])
 
   if (!mounted) {
     return null
@@ -89,6 +93,7 @@ export default function Topbar() {
         return
       }
       
+      setIsCreatingTraining(true)
       router.push(`/${params.companyId}/training/create-training`)
     }
   }
@@ -153,9 +158,36 @@ export default function Topbar() {
             {isCompanyAdmin && (
               <Button
                 onClick={handleCreateTraining}
-                className="bg-[#0B75FF] hover:bg-[#0052CC] text-white lg:px-6 lg:py-5 px-3 py-1 rounded-3xl md:text-sm text-xs"
+                disabled={isCreatingTraining}
+                className="bg-[#1D4ED8] hover:bg-[#0c3198] disabled:opacity-70 disabled:cursor-not-allowed text-white lg:px-6 lg:py-5 px-3 py-1 rounded-3xl md:text-sm text-xs flex items-center gap-2"
               >
-                Create Training
+                {isCreatingTraining ? (
+                  <>
+                    <svg 
+                      className="animate-spin h-4 w-4 text-white" 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      fill="none" 
+                      viewBox="0 0 24 24"
+                    >
+                      <circle 
+                        className="opacity-25" 
+                        cx="12" 
+                        cy="12" 
+                        r="10" 
+                        stroke="currentColor" 
+                        strokeWidth="4"
+                      />
+                      <path 
+                        className="opacity-75" 
+                        fill="currentColor" 
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
+                    </svg>
+                    <span>Loading...</span>
+                  </>
+                ) : (
+                  'Create Training'
+                )}
               </Button>
             )}
 

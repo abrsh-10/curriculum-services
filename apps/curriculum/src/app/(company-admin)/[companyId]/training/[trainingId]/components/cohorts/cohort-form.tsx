@@ -180,7 +180,7 @@ export function CohortForm({ trainingId, companyId, parentCohortId, cohort, isEd
                         {/* Tag Input */}
                         <div className="border border-[#E4E4E4] rounded-md p-3 bg-white min-h-[120px]">
                           <div className="flex flex-wrap gap-2 mb-3">
-                            {field.value.map((tag, index) => (
+                            {(field.value ?? []).map((tag, index) => (
                               <Badge
                                 key={index}
                                 variant="secondary"
@@ -197,7 +197,7 @@ export function CohortForm({ trainingId, companyId, parentCohortId, cohort, isEd
                                 </button>
                               </Badge>
                             ))}
-                            {field.value.length === 0 && (
+                            {(field.value ?? []).length === 0 && (
                               <span className="text-[#667085] text-sm italic">No tags added yet</span>
                             )}
                           </div>

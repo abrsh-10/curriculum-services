@@ -241,11 +241,9 @@ function AddCohortStudentModalComponent({
   const totalStudentPages = Math.ceil(totalStudentElements / modalPageSize);
 
   const selectedStudentIds = useMemo(() => {
-      return Object.keys(rowSelection)
-          .filter(index => rowSelection[index])
-          .map(index => availableStudents[parseInt(index, 10)]?.id)
-          .filter((id): id is string => !!id);
-  }, [rowSelection, availableStudents]);
+      // rowSelection keys are already student IDs (not indices) because StudentDataTable uses getRowId
+      return Object.keys(rowSelection).filter(id => rowSelection[id]);
+  }, [rowSelection]);
 
   const handleModalPageSizeChange = useCallback((newPageSize: number) => {
       setModalPageSize(newPageSize);
@@ -311,10 +309,12 @@ function AddCohortStudentModalComponent({
     }
   }, [selectedStudentIds, addTrainees, cohortId, trainingId, onClose]);
 
-  // Effect to clear selection when modal reopens or available students change
+  // Effect to clear selection when modal closes/reopens
   useEffect(() => {
-      setRowSelection({});
-  }, [isOpen, availableStudents])
+      if (isOpen) {
+        setRowSelection({});
+      }
+  }, [isOpen])
 
   // Count active filters
   const activeFiltersCount = Object.values(filters).filter(value => 

@@ -2,39 +2,38 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
-import { Eye, Edit, Settings, Trash2, CheckCircle2, PlusCircle } from "lucide-react"
+import { Eye, Edit, Trash2, CheckCircle2, PlusCircle, MoreVertical } from "lucide-react"
 import { AssessmentSummary } from "@/lib/hooks/useAssessment"
 import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // Base assessment columns
 export const assessmentColumns: ColumnDef<AssessmentSummary>[] = [
+  {
+    id: "name",
+    header: "Name",
+    cell: ({ row }) => {
+      return (
+        <span 
+          className="font-medium text-gray-900 max-w-[220px] truncate block" 
+          title={row.original.name}
+        >
+          {row.original.name}
+        </span>
+      )
+    }
+  },
   {
     id: "assessmentType",
     header: "Assessment Type",
     cell: ({ row }) => {
       return (
-        <div className="flex items-center gap-2">
-          <Badge 
-            variant="pending"
-            className="bg-blue-100 text-blue-800 hover:bg-blue-100"
-          >
-            Pre and Post Training
-          </Badge>
-        </div>
-      )
-    }
-  },
-  {
-    id: "description",
-    header: "Description",
-    cell: ({ row }) => {
-      const assessment = row.original
-      return (
-        <div className="max-w-[300px]">
-          <span className="text-gray-500">
-            {assessment.description || "No description provided"}
-          </span>
-        </div>
+        <span className=" text-gray-500">Pre and Post Training</span>
       )
     }
   },
@@ -57,8 +56,8 @@ export const assessmentColumns: ColumnDef<AssessmentSummary>[] = [
         const roleName = dev.role?.name === 'ROLE_CONTENT_DEVELOPER' ? 'Content Developer' : dev.role?.name || ''
         return (
           <div className="flex flex-col">
-            <span className="text-gray-700 text-sm">{displayName}</span>
-            <span className="text-gray-500 text-xs">{roleName}</span>
+            <span className="text-[#1D4ED8] font-semibold text-sm">{displayName}</span>
+            <span className=" text-xs text-gray-500">{roleName}</span>
           </div>
         )
       }
@@ -78,25 +77,16 @@ export const assessmentColumns: ColumnDef<AssessmentSummary>[] = [
       
       // Only show cohorts if they actually exist and are not empty
       if (assessment.cohorts && assessment.cohorts.length > 0) {
+        const cohortNames = assessment.cohorts.slice(0, 2).map(c => c.name).join(', ')
+        const extra = assessment.cohorts.length > 2 ? ` +${assessment.cohorts.length - 2} more` : ''
         return (
-          <div className="flex flex-wrap gap-1">
-            {assessment.cohorts.slice(0, 2).map((cohort, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                {cohort.name}
-              </Badge>
-            ))}
-            {assessment.cohorts.length > 2 && (
-              <Badge variant="secondary" className="text-xs">
-                +{assessment.cohorts.length - 2} more
-              </Badge>
-            )}
-          </div>
+          <span className="font-medium text-gray-900 text-sm">{cohortNames}{extra}</span>
         )
       }
       
-      // Show "Not assigned" when no cohorts exist (no dummy data)
+      // Show "Not assigned" when no cohorts exist
       return (
-        <span className="text-gray-500">
+        <span className="text-gray-400">
           Not assigned
         </span>
       )
@@ -112,22 +102,45 @@ export const assessmentColumns: ColumnDef<AssessmentSummary>[] = [
       const statusConfig = {
         PENDING: {
           label: "Pending",
-          className: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100"
         },
         APPROVED: {
           label: "Approved", 
-          className: "bg-green-100 text-green-800 hover:bg-green-100"
         },
         REJECTED: {
           label: "Rejected",
-          className: "bg-red-100 text-red-800 hover:bg-red-100"
         }
       }
       
       const config = statusConfig[status] || statusConfig.PENDING
       
+      const variant = status === 'APPROVED' 
+        ? 'approved' 
+        : status === 'REJECTED' 
+          ? 'rejected' 
+          : 'pending'
+      
+      const dotClass = status === 'APPROVED'
+        ? 'bg-green-700'
+        : status === 'REJECTED'
+          ? 'bg-red-700'
+          : 'bg-[#1D4ED8]' // brand for pending
+      
+      // Subtle background + brand-aligned text colors
+      const bgClass = status === 'APPROVED'
+        ? 'bg-green-50'
+        : status === 'REJECTED'
+          ? 'bg-red-50'
+          : 'bg-blue-50'
+      
+      const textClass = status === 'APPROVED'
+        ? 'text-green-700'
+        : status === 'REJECTED'
+          ? 'text-red-700'
+          : 'text-[#1D4ED8]' // brand for pending
+      
       return (
-        <Badge variant="secondary" className={config.className}>
+        <Badge variant={variant} className={`ring-0 ${bgClass} ${textClass}`}>
+          <span className={`mr-2 inline-block h-1.5 w-1.5 rounded-full ${dotClass}`} />
           {config.label}
         </Badge>
       )
@@ -154,74 +167,73 @@ export function createAssessmentActionsColumn(
       const assessment = row.original
 
       return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onView(assessment)}
-            className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            title="View Assessment"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
-          
-          {hasEditPermission && (
-            <>
-              {canAddContent?.(assessment) && onAddContent ? (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onAddContent(assessment)}
-                  className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
-                  title="Add Content"
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0"
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem 
+              onClick={() => onView(assessment)}
+              onSelect={(e) => e.preventDefault()}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              View
+            </DropdownMenuItem>
+            
+            {hasEditPermission && (
+              <>
+                {canAddContent?.(assessment) && onAddContent ? (
+                  <DropdownMenuItem 
+                    onClick={() => onAddContent(assessment)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Content
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem 
+                    onClick={() => onEdit(assessment)}
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+                )}
+                
+                {onApprove && canApprove?.(assessment) && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.preventDefault()
+                      // Small delay to let dropdown close first
+                      setTimeout(() => onApprove(assessment), 0)
+                    }}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Approve
+                  </DropdownMenuItem>
+                )}
+                
+                <DropdownMenuItem 
+                  onClick={(e) => {
+                    e.preventDefault()
+                    // Small delay to let dropdown close first
+                    setTimeout(() => onDelete(assessment), 0)
+                  }}
+                  className="text-red-600 focus:text-red-600"
                 >
-                  <PlusCircle className="h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onEdit(assessment)}
-                  className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                  title="Edit Assessment"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-              )}
-              {onApprove && canApprove?.(assessment) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => onApprove(assessment)}
-                  className="h-8 w-8 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50"
-                  title="Approve Assessment"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
-                </Button>
-              )}
-              
-              {/* <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onSettings(assessment)}
-                className="h-8 w-8 p-0 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
-                title="Assessment Settings"
-              >
-                <Settings className="h-4 w-4" />
-              </Button> */}
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDelete(assessment)}
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                title="Delete Assessment"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </>
-          )}
-        </div>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     }
   }

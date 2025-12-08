@@ -1,8 +1,9 @@
 import { useState, useCallback, useMemo } from "react"
+import { useRouter } from "next/navigation"
 import { RowSelectionState } from "@tanstack/react-table"
 import { Student, CreateStudentData, StudentFilters } from "@/lib/hooks/useStudents"
 import { useAddStudent, useUpdateStudent, useDeleteStudent, useBulkDeleteStudents } from "@/lib/hooks/useStudents"
-import { useSubmitCertificate } from "@/lib/hooks/useCertificate"
+import { useSubmitCertificate, useSendCertificateSms } from "@/lib/hooks/useCertificate"
 import { toast } from "sonner"
 import { StudentFormValues } from "../../../students/add/components/formSchemas"
 
@@ -21,6 +22,7 @@ export function useStudentActions({
   rowSelection,
   setRowSelection,
 }: UseStudentActionsProps) {
+  const router = useRouter()
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null)
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
@@ -30,19 +32,27 @@ export function useStudentActions({
   const updateStudentMutation = useUpdateStudent()
   const deleteStudentMutation = useDeleteStudent()
   const bulkDeleteMutation = useBulkDeleteStudents()
-  const { mutate: generateCertificates, isPending: isGeneratingCertificates } = useSubmitCertificate()
+  const { mutateAsync: generateCertificatesAsync, isPending: isGeneratingCertificates } = useSubmitCertificate()
+  const { mutateAsync: sendCertificateSmsAsync, isPending: isSendingCertificateSms } = useSendCertificateSms()
 
   const selectedStudentsCount = Object.keys(rowSelection).length
 
   // Helper function to get selected student IDs
   const getSelectedStudentIds = useCallback(() => {
-    const selectedIndices = Object.keys(rowSelection);
-    return selectedIndices
-      .map(index => {
-        const student = paginationData.students[parseInt(index)];
-        return student?.id;
-      })
-      .filter(Boolean) as string[];
+    const selectedKeys = Object.keys(rowSelection);
+    if (selectedKeys.length === 0) return [];
+
+    // Backward compatibility: if keys are numeric, treat them as indices
+    const allNumeric = selectedKeys.every((k) => /^\d+$/.test(k));
+    if (allNumeric) {
+      return selectedKeys
+        .map((index) => paginationData.students[parseInt(index)]?.id)
+        .filter(Boolean) as string[];
+    }
+
+    // Otherwise keys are stable row IDs (student IDs)
+    const availableIds = new Set(paginationData.students.map((s) => s.id));
+    return selectedKeys.filter((id) => availableIds.has(id));
   }, [rowSelection, paginationData.students]);
 
   // Convert form values to API format
@@ -160,30 +170,58 @@ export function useStudentActions({
     setCertificateDateModalOpen(true);
   }, [selectedStudentsCount]);
 
-  const handleConfirmCertificateGeneration = useCallback((issueDate: string) => {
+  const handleConfirmCertificateGeneration = useCallback(async (issueDate: string) => {
     const traineeIds = getSelectedStudentIds();
 
     if (traineeIds.length === 0) {
       toast.error('No valid students selected');
+      setCertificateDateModalOpen(false);
       return;
     }
 
-    generateCertificates(
-      {
+    try {
+      await generateCertificatesAsync({
         issueDate,
         traineeIds
-      },
-      {
-        onSuccess: () => {
-          setRowSelection({});
-          setCertificateDateModalOpen(false);
-        },
-        onError: () => {
-          // Keep modal open on error so user can retry
-        }
-      }
-    );
-  }, [getSelectedStudentIds, generateCertificates, setRowSelection]);
+      });
+      
+      // On success: clear selection and close modal
+      setRowSelection({});
+      setCertificateDateModalOpen(false);
+      
+      // Refresh the page to prevent UI freeze
+      setTimeout(() => {
+        router.refresh();
+      }, 300);
+    } catch (error) {
+      // Error is handled by mutation's onError handler
+      // Close modal and refresh to prevent UI freeze
+      setCertificateDateModalOpen(false);
+      
+      // Refresh the page even on error to prevent UI freeze
+      setTimeout(() => {
+        router.refresh();
+      }, 300);
+      
+      console.error('Certificate generation failed:', error);
+    }
+  }, [getSelectedStudentIds, generateCertificatesAsync, setRowSelection, router]);
+
+  // Send certificate SMS for selected trainees
+  const handleSendCertificateSms = useCallback(async () => {
+    const traineeIds = getSelectedStudentIds();
+    if (traineeIds.length === 0) {
+      toast.error('No valid students selected');
+      return;
+    }
+    try {
+      await sendCertificateSmsAsync({ traineeIds });
+      setRowSelection({});
+    } catch (error) {
+      // Error handled in mutation
+      console.error('Send certificate SMS failed:', error);
+    }
+  }, [getSelectedStudentIds, sendCertificateSmsAsync, setRowSelection]);
 
   return {
     // State
@@ -205,11 +243,13 @@ export function useStudentActions({
     confirmBulkDelete,
     handleGenerateCertificates,
     handleConfirmCertificateGeneration,
+    handleSendCertificateSms,
     getSelectedStudentIds,
     
     // Loading states
     isSubmitting: isAddingStudent || updateStudentMutation.isPending,
     isGeneratingCertificates,
+    isSendingCertificateSms,
     isDeleting: deleteStudentMutation.isPending,
     isBulkDeleting: bulkDeleteMutation.isPending,
   }

@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { BaseDataOptions } from "@/types/base-data";
+import { useSingleCascadingLocation } from "@/lib/hooks/useCascadingLocation";
 
 // Constants
 const REQUIREMENT_TYPES = [
@@ -97,17 +98,33 @@ export function AddDataDialog({
   const [assessmentSubType, setAssessmentSubType] = useState(
     initialData?.assessmentSubType || "FORMATIVE"
   );
+  
+  // For city cascading: separate country and region state
+  const [cityCountryId, setCityCountryId] = useState("");
+  const [cityRegionId, setCityRegionId] = useState("");
 
-  // Fetch countries if we're adding/editing a city
+  // Fetch countries for regions
   const { data: countries } = useBaseData("country", {
     enabled: type === "region",
   } as BaseDataOptions);
-  const { data: zones } = useBaseData("zone", {
-    enabled: type === "city",
-  } as BaseDataOptions);
+  
+  // Fetch regions for zones
   const { data: regions } = useBaseData("region", {
     enabled: type === "zone",
   } as BaseDataOptions);
+  
+  // Use cascading location hook for cities (Country → Region → Zone)
+  const {
+    countries: cityCountries,
+    regions: cityRegions,
+    zones: cityZones,
+    isLoadingCountries: isLoadingCityCountries,
+    isLoadingRegions: isLoadingCityRegions,
+    isLoadingZones: isLoadingCityZones,
+  } = useSingleCascadingLocation(
+    type === "city" ? cityCountryId : undefined,
+    type === "city" ? cityRegionId : undefined
+  );
 
   const actualOpen = open ?? dialogOpen;
   const actualOnOpenChange = onOpenChange ?? setDialogOpen;
@@ -121,6 +138,8 @@ export function AddDataDialog({
     setRange("");
     setRequirementType("LEARNER");
     setAssessmentSubType("FORMATIVE");
+    setCityCountryId("");
+    setCityRegionId("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -186,20 +205,99 @@ export function AddDataDialog({
           </div>
 
           {type === "city" && (
-            <div className="grid gap-2 px-5">
-              <Label htmlFor="zone">Zone</Label>
-              <Select value={zoneId} onValueChange={setZoneId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select zone">{zoneId && zones?.find((zone: BaseDataItem) => zone.id === zoneId)?.name}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {zones?.map((zone: BaseDataItem) => (
-                    <SelectItem key={zone.id} value={zone.id}>
-                      {zone.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid gap-4 px-5">
+              {/* Country Selection */}
+              <div className="grid gap-2">
+                <Label htmlFor="city-country">Country</Label>
+                <Select 
+                  value={cityCountryId} 
+                  onValueChange={(value) => {
+                    setCityCountryId(value);
+                    // Clear dependent selections
+                    setCityRegionId("");
+                    setZoneId("");
+                  }}
+                  disabled={isLoadingCityCountries}
+                >
+                  <SelectTrigger>
+                    {isLoadingCityCountries ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading countries...</span>
+                      </div>
+                    ) : (
+                      <SelectValue placeholder="Select country" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityCountries?.map((country: BaseDataItem) => (
+                      <SelectItem key={country.id} value={country.id}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Region Selection */}
+              <div className="grid gap-2">
+                <Label htmlFor="city-region">Region</Label>
+                <Select 
+                  value={cityRegionId} 
+                  onValueChange={(value) => {
+                    setCityRegionId(value);
+                    // Clear dependent selection
+                    setZoneId("");
+                  }}
+                  disabled={!cityCountryId || isLoadingCityRegions}
+                >
+                  <SelectTrigger>
+                    {isLoadingCityRegions ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading regions...</span>
+                      </div>
+                    ) : (
+                      <SelectValue placeholder={!cityCountryId ? "Select country first" : "Select region"} />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityRegions?.map((region: BaseDataItem) => (
+                      <SelectItem key={region.id} value={region.id}>
+                        {region.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Zone Selection */}
+              <div className="grid gap-2">
+                <Label htmlFor="city-zone">Zone</Label>
+                <Select 
+                  value={zoneId} 
+                  onValueChange={setZoneId}
+                  disabled={!cityRegionId || isLoadingCityZones}
+                >
+                  <SelectTrigger>
+                    {isLoadingCityZones ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Loading zones...</span>
+                      </div>
+                    ) : (
+                      <SelectValue placeholder={!cityRegionId ? "Select region first" : "Select zone"} />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityZones?.map((zone: BaseDataItem) => (
+                      <SelectItem key={zone.id} value={zone.id}>
+                        {zone.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           )}
 

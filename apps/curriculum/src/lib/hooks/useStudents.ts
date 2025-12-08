@@ -254,9 +254,10 @@ export interface StudentFilters {
   isEnrollmentSyncedWithEdge?: boolean
   isPreAssessmentSyncedWithEdge?: boolean
   isPostAssessmentSyncedWithEdge?: boolean
-  // edge age filters
-  edgeAgeAbove?: number
-  edgeAgeBelow?: number
+  // Completion sync filter
+  isCompletionSyncedWithEdge?: boolean
+  // Edge relative date filter (single date, not range)
+  relativeDate?: string
 }
 
 export function useStudents(
@@ -374,12 +375,12 @@ export function useStudents(
           if (filters.isPostAssessmentSyncedWithEdge !== undefined) {
             params.append('is-post-assessment-synced-with-edge', filters.isPostAssessmentSyncedWithEdge.toString())
           }
-          // edge age filters
-          if (filters.edgeAgeAbove !== undefined) {
-            params.append('training-age-above', filters.edgeAgeAbove.toString())
+          if (filters.isCompletionSyncedWithEdge !== undefined) {
+            params.append('is-completion-synced-with-edge', filters.isCompletionSyncedWithEdge.toString())
           }
-          if (filters.edgeAgeBelow !== undefined) {
-            params.append('training-age-below', filters.edgeAgeBelow.toString())
+          // Edge relative date filter
+          if (filters.relativeDate !== undefined) {
+            params.append('relative-date', filters.relativeDate)
           }
           
           // Commented out for now - can be enabled later
@@ -414,7 +415,9 @@ export function useStudents(
         throw new Error(error?.response?.data?.message || 'Failed to load students')
       }
     },
-    enabled: !!trainingId
+    enabled: !!trainingId,
+    staleTime: 1000 * 30, // 30 seconds
+    refetchOnWindowFocus: false,
   })
 }
 
@@ -423,25 +426,25 @@ export function useAddStudent() {
   const { data: languages } = useBaseData('language', {
     enabled: true,
     page: 1,
-    pageSize: 50 // Most applications won't have more than 50 languages
+    pageSize: 200 // Increased to match bulk import requirements
   })
   
   const { data: academicLevels } = useBaseData('academic-level', {
     enabled: true,
     page: 1,
-    pageSize: 20 // Academic levels are typically limited
+    pageSize: 50 // Increased for better coverage
   })
   
   const { data: disabilities } = useBaseData('disability', {
     enabled: true,
     page: 1,
-    pageSize: 30 // Reasonable limit for disabilities
+    pageSize: 100 // Increased to match bulk import for consistency
   })
   
   const { data: marginalizedGroups } = useBaseData('marginalized-group', {
     enabled: true,
     page: 1,
-    pageSize: 20 // Reasonable limit for marginalized groups
+    pageSize: 100 // Increased to match bulk import for consistency
   })
 
   // Location data will be handled by cascading location hook in components
@@ -608,6 +611,36 @@ export function useUploadConsentForm() {
   })
 }
 
+export function useDeleteConsentForm() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const token = getCookie('token')
+      
+      const response = await axios.delete(
+        `${process.env.NEXT_PUBLIC_API}/trainee/${id}/consent-form`,
+        {
+          headers: { 
+            Authorization: `Bearer ${token}`
+          }
+        }
+      )
+      return { responseData: response.data, id }
+    },
+    onSuccess: ({ id }) => {
+      toast.success('Consent form deleted successfully')
+      queryClient.invalidateQueries({ queryKey: ['student', id] })
+      queryClient.invalidateQueries({ queryKey: ['students'] })
+      // Also invalidate cohortTrainees to update the attendance view
+      queryClient.invalidateQueries({ queryKey: ['cohortTrainees'] })
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Failed to delete consent form')
+    }
+  })
+}
+
 export function useUpdateStudent() {
   const queryClient = useQueryClient()
 
@@ -692,10 +725,11 @@ export function useBulkImportStudents() {
 export function useBulkImportStudentsByName(enabled: boolean = true) {
   // Fetch countries (always needed for CSV validation)
   // Use large page size instead of disablePagination to ensure we get all data
+  // Add staleTime to prevent refetching on every component mount
   const countriesQuery = useBaseData('country', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 1000 // Reduced from 10000 - most countries won't exceed this
   })
   
   // Fetch all regions, zones, and cities without pagination for client-side filtering
@@ -704,43 +738,43 @@ export function useBulkImportStudentsByName(enabled: boolean = true) {
   const regionsQuery = useBaseData('region', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 1000 // Reduced from 10000
   })
   
   const zonesQuery = useBaseData('zone', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 2000 // Reduced from 10000
   })
   
   const citiesQuery = useBaseData('city', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 3000 // Reduced from 10000 - most relevant use cases won't exceed this
   })
   
   const languagesQuery = useBaseData('language', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 200 // Reduced from 10000
   })
   
   const academicLevelsQuery = useBaseData('academic-level', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 50 // Reduced from 10000
   })
   
   const disabilitiesQuery = useBaseData('disability', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 100 // Reduced from 10000
   })
   
   const marginalizedGroupsQuery = useBaseData('marginalized-group', {
     enabled,
     page: 1,
-    pageSize: 10000
+    pageSize: 100 // Reduced from 10000
   })
   
   // Wrap data in objects with .data property for CSVImportView

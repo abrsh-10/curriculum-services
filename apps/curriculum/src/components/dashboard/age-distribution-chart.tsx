@@ -51,9 +51,9 @@ export function AgeDistributionChart({
       const percentage = ((value / total) * 100).toFixed(1);
       
       return (
-        <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-lg">
-          <p className="font-medium text-sm text-gray-900">{`Age: ${label}`}</p>
-          <p className="text-sm text-gray-700">{`${value} trainees (${percentage}%)`}</p>
+        <div className="bg-white p-3 border-2 border-gray-200 shadow-2xl rounded-xl backdrop-blur-md">
+          <p className="font-bold text-sm text-gray-900">{`Age: ${label}`}</p>
+          <p className="text-sm text-gray-700 mt-1 font-medium">{`${value} trainees (${percentage}%)`}</p>
         </div>
       );
     }
@@ -62,8 +62,8 @@ export function AgeDistributionChart({
   };
   
   return (
-    <Card className={cn("p-5 shadow-sm rounded-xl overflow-hidden", className)}>
-      <h3 className="text-lg font-semibold mb-5 text-gray-800">{title}</h3>
+    <Card className={cn("p-6 shadow-lg rounded-2xl overflow-hidden border-0 bg-gradient-to-br from-white to-gray-50", className)}>
+      <h3 className="text-lg font-bold mb-6 text-gray-900">{title}</h3>
       
       {chartData.length === 0 ? (
         <div className="h-64 w-full flex justify-center items-center text-gray-500">
@@ -81,27 +81,33 @@ export function AgeDistributionChart({
                 bottom: 20,
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+              <defs>
+                <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#1D4ED8" stopOpacity={1}/>
+                  <stop offset="100%" stopColor="#0A2342" stopOpacity={0.85}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5E5" opacity={0.5} />
               <XAxis 
                 dataKey="name" 
-                tick={{ fontSize: 12, fill: '#6B7280' }}
-                axisLine={{ stroke: '#D1D5DB' }}
+                tick={{ fontSize: 13, fill: '#374151', fontWeight: 500 }}
+                axisLine={{ stroke: '#E5E5E5' }}
                 tickLine={false}
               />
               <YAxis 
-                tick={{ fontSize: 12, fill: '#6B7280' }}
-                axisLine={{ stroke: '#D1D5DB' }}
+                tick={{ fontSize: 13, fill: '#374151', fontWeight: 500 }}
+                axisLine={{ stroke: '#E5E5E5' }}
                 tickLine={false}
-                width={40}
+                width={45}
               />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(224, 231, 255, 0.3)' }} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(29, 78, 216, 0.1)' }} />
               <Bar 
                 dataKey="count" 
                 name="Trainees" 
-                fill="#0B75FF" 
-                radius={[4, 4, 0, 0]} 
-                barSize={30}
-                animationDuration={1500}
+                fill="url(#colorGradient)" 
+                radius={[8, 8, 0, 0]} 
+                barSize={40}
+                isAnimationActive={false}
               />
             </BarChart>
           </ResponsiveContainer>

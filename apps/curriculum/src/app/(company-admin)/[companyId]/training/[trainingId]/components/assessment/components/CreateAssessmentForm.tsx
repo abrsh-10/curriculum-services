@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
-import { useAssessmentDetail, AssessmentSummary, useUpdateAssessment, /* useAddAssessmentSection, */ useAddAssessmentSectionsBulk } from "@/lib/hooks/useAssessment"
+import { useAssessmentDetail, AssessmentSummary, useUpdateAssessment, /* useAddAssessmentSection, */ useAddAssessmentSectionsBulk, useUpdateAssessmentSection } from "@/lib/hooks/useAssessment"
 import { AssessmentEditorProvider, useAssessmentEditor } from "./AssessmentEditorContext"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 // Editors below handle entry/choice API calls directly; no direct usage here
@@ -122,6 +122,8 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
   // Keep single-section hook for other flows, even if not used in bulk path
   // const addAssessmentSection = useAddAssessmentSection()
   const addAssessmentSectionsBulk = useAddAssessmentSectionsBulk()
+  const updateAssessmentSection = useUpdateAssessmentSection()
+  const sectionSaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   // Helper function to convert minutes to appropriate duration and type
   const convertMinutesToDurationAndType = (minutes: number) => {
@@ -218,15 +220,49 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
   }
 
   const updateSectionTitle = (sectionIndex: number, title: string) => {
+    // capture current for PATCH before state change
+    const current = sections[sectionIndex]
+    const sectionId = current?.id
+    const description = current?.description || ""
     setSections(prev => prev.map((section, i) => 
       i === sectionIndex ? { ...section, title } : section
     ))
+    // Debounced PATCH only if this is an existing section
+    if (editingAssessment && sectionId) {
+      const key = sectionId
+      if (sectionSaveTimers.current[key]) {
+        clearTimeout(sectionSaveTimers.current[key])
+      }
+      sectionSaveTimers.current[key] = setTimeout(() => {
+        updateAssessmentSection.mutate({
+          sectionId,
+          data: { title, description, sectionOrder: sectionIndex + 1 }
+        })
+      }, 600)
+    }
   }
 
   const updateSectionDescription = (sectionIndex: number, description: string) => {
+    // capture current for PATCH before state change
+    const current = sections[sectionIndex]
+    const sectionId = current?.id
+    const title = current?.title || `Section ${sectionIndex + 1}`
     setSections(prev => prev.map((section, i) => 
       i === sectionIndex ? { ...section, description } : section
     ))
+    // Debounced PATCH only if this is an existing section
+    if (editingAssessment && sectionId) {
+      const key = sectionId
+      if (sectionSaveTimers.current[key]) {
+        clearTimeout(sectionSaveTimers.current[key])
+      }
+      sectionSaveTimers.current[key] = setTimeout(() => {
+        updateAssessmentSection.mutate({
+          sectionId,
+          data: { title, description, sectionOrder: sectionIndex + 1 }
+        })
+      }, 600)
+    }
   }
 
   // Question management functions
@@ -563,12 +599,14 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
               </p>
             </div>
             
-            <div className="flex gap-3">
-              {onCancel && (
-                <Button variant="outline" onClick={onCancel} className="px-6">
-                  Cancel
-                </Button>
-              )}
+              <div className="flex gap-3">
+                {/* Show header Cancel unless we're in assessment settings while editing,
+                    in which case Cancel appears inside the settings panel next to Update */}
+                {onCancel && !(editorMode === 'assessment' && !!editingAssessment) && (
+                  <Button variant="outline" onClick={onCancel} className="px-6">
+                    Cancel
+                  </Button>
+                )}
         {/* Content developer: create all local sections with their questions at once */}
         {isContentDeveloper && !!editingAssessment && (
                 <Button
@@ -579,8 +617,8 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
                   {creatingAllSections ? "Creating..." : "Create All Sections"}
                 </Button>
         )}
-        {/* Only show the main submit button when in assessment mode or creating new assessment */}
-        {(editorMode === 'assessment' || !editingAssessment) && !isContentDeveloper && (
+        {/* Only show the main submit button in header when creating new assessment */}
+        {!editingAssessment && !isContentDeveloper && (
                 <Button
                   onClick={handleSubmit}
                   className="bg-blue-600 text-white hover:bg-blue-700 px-6"
@@ -609,8 +647,8 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
                 selectedQuestion={selectedQuestion}
                 editMode={editorMode}
                 assessmentName={assessmentName}
-                isEditMode={!!editingAssessment && !isContentDeveloper && questionState === 'viewing'}
-                canAddSection={!editingAssessment || isContentDeveloper}
+                isEditMode={false}
+                canAddSection={true}
                 disableAssessmentSettings={!!editingAssessment && isContentDeveloper}
                 onSelectAssessmentSettings={selectAssessmentSettings}
                 onSelectQuestion={selectQuestion}
@@ -619,7 +657,47 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
                 onDeleteSection={removeSection}
                 onDeleteQuestion={removeQuestion}
                 onAddQuestion={addQuestion}
-                onAddSection={isContentDeveloper ? addSection : (!editingAssessment ? addSection : undefined)}
+                onAddSection={addSection}
+                onSaveSectionMeta={(idx, title, description) => {
+                  // Update local state immediately
+                  setSections(prev => prev.map((s, i) => i === idx ? { ...s, title, description } : s))
+                  const sec = sections[idx]
+                  const sectionId = sec?.id
+                  if (editingAssessment && sectionId) {
+                    updateAssessmentSection.mutate({
+                      sectionId,
+                      data: { title, description, sectionOrder: idx + 1 }
+                    })
+                  }
+                }}
+                onReorderSections={(fromIdx, toIdx) => {
+                  if (fromIdx === toIdx) return
+                  setSections(prev => {
+                    const next = [...prev]
+                    const [moved] = next.splice(fromIdx, 1)
+                    next.splice(toIdx, 0, moved)
+                    // Adjust selection index to follow moved section naturally
+                    let nextSelected = selectedSection
+                    if (selectedSection === fromIdx) nextSelected = toIdx
+                    else if (fromIdx < selectedSection && toIdx >= selectedSection) nextSelected = selectedSection - 1
+                    else if (fromIdx > selectedSection && toIdx <= selectedSection) nextSelected = selectedSection + 1
+                    setSelectedSection(Math.max(0, Math.min(next.length - 1, nextSelected)))
+                    // Persist new order only for sections with ids and whose index changed
+                    const prevIndexById = new Map<string, number>()
+                    prev.forEach((s, i) => { if (s.id) prevIndexById.set(s.id, i) })
+                    next.forEach((s, i) => {
+                      if (!s.id) return
+                      const prevIdx = prevIndexById.get(s.id)
+                      if (prevIdx !== i && editingAssessment) {
+                        updateAssessmentSection.mutate({
+                          sectionId: s.id,
+                          data: { title: s.title, description: s.description, sectionOrder: i + 1 }
+                        })
+                      }
+                    })
+                    return next
+                  })
+                }}
               />
             </div>
 
@@ -650,7 +728,10 @@ function CreateAssessmentFormInner({ trainingId, onCancel, onSubmit, isSubmittin
                     contentDeveloperEmail={contentDeveloperEmail}
                     setContentDeveloperEmail={setContentDeveloperEmail}
                     trainingId={trainingId}
-                    isEditMode={!!editingAssessment && isContentDeveloper}
+                    onSubmit={editingAssessment ? handleSubmit : undefined}
+                    onCancel={editingAssessment ? onCancel : undefined}
+                    submitLabel={editingAssessment ? "Update Assessment" : undefined}
+                    isSubmitting={isSubmitting || updateAssessment.isPending}
                   />
                         ) : (
                           currentQuestion && (

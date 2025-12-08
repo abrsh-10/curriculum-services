@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
@@ -18,6 +18,7 @@ import { LocationFilter } from "./filters/LocationFilter"
 import { MultiSelectFilter } from "./filters/MultiSelectFilter"
 import { CohortFilter } from "./filters/CohortFilter"
 import { RangeField } from "./filters/RangeField"
+import { DateField } from "./filters/DateField"
 import { ConsentFormFilter } from "./filters/ConsentFormFilter"
 import { SurveyFilter } from "./filters/SurveyFilter"
 import { AssessmentAttemptFilter } from "./filters/AssessmentAttemptFilter"
@@ -216,25 +217,19 @@ export function StudentFilter({
               placeholderBelow="e.g., 65"
             />
 
-            {/* Edge Age Filter */}
-            <RangeField
-              label="Edge Age Range"
-              aboveLabel="Above (years)"
-              belowLabel="Below (years)"
-              aboveValue={filterState.edgeAgeAbove}
-              belowValue={filterState.edgeAgeBelow}
-              setAbove={filterState.setEdgeAgeAbove}
-              setBelow={filterState.setEdgeAgeBelow}
-              min={0}
-              max={120}
-              placeholderAbove="e.g., 18"
-              placeholderBelow="e.g., 65"
+            {/* Edge Relative Date Filter */}
+            <DateField
+              label="Edge Relative Date"
+              value={filterState.relativeDate}
+              setValue={filterState.setRelativeDate}
+              placeholder="Select date"
+              description="Filter students by their training start date relative to this date"
             />
 
             {/* Consent Form Filter */}
             <ConsentFormFilter
               hasConsentForm={filterState.hasConsentForm}
-              onChange={(checked) => filterState.setHasConsentForm(checked ? true : undefined)}
+              onChange={filterState.setHasConsentForm}
             />
 
             {/* Cohort Filter */}
@@ -263,16 +258,16 @@ export function StudentFilter({
             <SurveyFilter
               hasFilledBaselineSurvey={filterState.hasFilledBaselineSurvey}
               hasFilledEndlineSurvey={filterState.hasFilledEndlineSurvey}
-              onBaselineSurveyChange={(checked) => filterState.setHasFilledBaselineSurvey(checked ? true : undefined)}
-              onEndlineSurveyChange={(checked) => filterState.setHasFilledEndlineSurvey(checked ? true : undefined)}
+              onBaselineSurveyChange={filterState.setHasFilledBaselineSurvey}
+              onEndlineSurveyChange={filterState.setHasFilledEndlineSurvey}
             />
 
             {/* Assessment Attempt Filters */}
             <AssessmentAttemptFilter
               hasPreAssessmentAttempt={filterState.hasPreAssessmentAttempt}
               hasPostAssessmentAttempt={filterState.hasPostAssessmentAttempt}
-              onPreAssessmentChange={(checked) => filterState.setHasPreAssessmentAttempt(checked ? true : undefined)}
-              onPostAssessmentChange={(checked) => filterState.setHasPostAssessmentAttempt(checked ? true : undefined)}
+              onPreAssessmentChange={filterState.setHasPreAssessmentAttempt}
+              onPostAssessmentChange={filterState.setHasPostAssessmentAttempt}
             />
 
             {/* Assessment Score Filters */}
@@ -312,8 +307,8 @@ export function StudentFilter({
             <CertificateFilter
               isCertified={filterState.isCertified}
               isCertificateSmsSent={filterState.isCertificateSmsSent}
-              onCertifiedChange={(checked) => filterState.setIsCertified(checked ? true : undefined)}
-              onSmsSentChange={(checked) => filterState.setIsCertificateSmsSent(checked ? true : undefined)}
+              onCertifiedChange={filterState.setIsCertified}
+              onSmsSentChange={filterState.setIsCertificateSmsSent}
             />
 
             {/* Edge Sync Filters */}
@@ -322,10 +317,12 @@ export function StudentFilter({
               isEnrollmentSyncedWithEdge={filterState.isEnrollmentSyncedWithEdge}
               isPreAssessmentSyncedWithEdge={filterState.isPreAssessmentSyncedWithEdge}
               isPostAssessmentSyncedWithEdge={filterState.isPostAssessmentSyncedWithEdge}
+              isCompletionSyncedWithEdge={filterState.isCompletionSyncedWithEdge}
               onCreationSyncChange={filterState.setIsCreationSyncedWithEdge}
               onEnrollmentSyncChange={filterState.setIsEnrollmentSyncedWithEdge}
               onPreAssessmentSyncChange={filterState.setIsPreAssessmentSyncedWithEdge}
               onPostAssessmentSyncChange={filterState.setIsPostAssessmentSyncedWithEdge}
+              onCompletionSyncChange={filterState.setIsCompletionSyncedWithEdge}
             />
           </div>
         </div>

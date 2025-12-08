@@ -81,7 +81,10 @@ export function useAnalytics() {
       } catch (error: any) {
         throw new Error(error?.response?.data?.message || 'Failed to load trainee analytics data')
       }
-    }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes - analytics don't change frequently
+    refetchOnWindowFocus: false, // Don't refetch when user switches tabs
+    refetchOnMount: false, // Don't refetch if data is still fresh
   });
 
   const sessionQuery = useQuery({
@@ -103,7 +106,10 @@ export function useAnalytics() {
       } catch (error: any) {
         throw new Error(error?.response?.data?.message || 'Failed to load session analytics data')
       }
-    }
+    },
+    staleTime: 1000 * 60 * 5, // 5 minutes - analytics don't change frequently
+    refetchOnWindowFocus: false, // Don't refetch when user switches tabs
+    refetchOnMount: false, // Don't refetch if data is still fresh
   });
 
   return {

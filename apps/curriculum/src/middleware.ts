@@ -121,12 +121,34 @@ export function middleware(req: NextRequest) {
           headers: requestHeaders
         });
       }
-      // Prevent access to company-specific routes (routes with IDs)
-      if (pathname.match(/\/[a-zA-Z0-9-]+\/[a-zA-Z-]+$/)) {
+      
+      // Allow access to ICOG admin routes
+      const icogAdminRoutes = [
+        '/dashboard',
+        '/users',
+        '/trainings',
+        '/basedata',
+        '/settings'
+      ];
+      
+      // Check if accessing an allowed ICOG admin route or its sub-routes
+      const isIcogAdminRoute = icogAdminRoutes.some(route => 
+        pathname === route || pathname.startsWith(`${route}/`)
+      );
+      
+      if (isIcogAdminRoute) {
+        return NextResponse.next({
+          request: { headers: requestHeaders }
+        });
+      }
+      
+      // Prevent access to company-specific routes (routes with IDs like /companyId/something)
+      if (pathname.match(/\/[a-f0-9-]{36}\//) || pathname.match(/^\/[a-zA-Z0-9-]+\/[a-zA-Z-]+$/)) {
         return NextResponse.redirect(new URL('/unauthorized', req.url), {
           headers: requestHeaders
         });
       }
+      
       return NextResponse.next({
         request: { headers: requestHeaders }
       });

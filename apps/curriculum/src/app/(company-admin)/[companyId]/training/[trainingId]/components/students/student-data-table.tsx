@@ -56,6 +56,8 @@ export function StudentDataTable({
     getCoreRowModel: getCoreRowModel(),
     onSortingChange: setSorting,
     getSortedRowModel: getSortedRowModel(),
+    // Use stable row IDs so selection persists across pagination/sorting and maps to student IDs
+    getRowId: (row) => (row as Student).id,
     state: {
       sorting,
       rowSelection,
@@ -125,14 +127,16 @@ export function StudentDataTable({
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24">
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Loading...</span>
-                  </div>
-                </TableCell>
-              </TableRow>
+              // Show skeleton rows to maintain table structure during loading
+              Array.from({ length: 5 }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`} className="border-gray-100">
+                  {columns.map((_, colIndex) => (
+                    <TableCell key={`skeleton-cell-${colIndex}`} className="py-4 px-5">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : data && data.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} className="border-gray-100">

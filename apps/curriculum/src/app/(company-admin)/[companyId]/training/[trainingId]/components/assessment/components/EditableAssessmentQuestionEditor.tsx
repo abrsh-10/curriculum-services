@@ -77,11 +77,21 @@ export function EditableAssessmentQuestionEditor({
   const [showChoiceDeleteDialog, setShowChoiceDeleteDialog] = useState(false)
   const [choiceToDelete, setChoiceToDelete] = useState<{ index: number; text: string } | null>(null)
   const [originalChoices, setOriginalChoices] = useState<ChoiceForm[]>(question.choices || [])
+  const [originalQuestion, setOriginalQuestion] = useState<{ question: string; questionType: QuestionType; weight: number }>({
+    question: question.question,
+    questionType: question.questionType,
+    weight: question.weight
+  })
 
   // Update local state when switching to a different question reference
   useEffect(() => {
     setLocalQuestion(question)
     setOriginalChoices(question.choices || [])
+    setOriginalQuestion({
+      question: question.question,
+      questionType: question.questionType,
+      weight: question.weight
+    })
     setHasUnsavedChanges(false)
   }, [question, question?.id])
 
@@ -176,8 +186,19 @@ export function EditableAssessmentQuestionEditor({
 
     try {
       if (localQuestion.id) {
-        // Update existing question - handle question and choices separately
-        await updateExistingQuestion()
+        // Only PATCH the entry if question fields actually changed;
+        // choices will be handled individually either way.
+        const questionChanged =
+          localQuestion.question !== originalQuestion.question ||
+          localQuestion.questionType !== originalQuestion.questionType ||
+          localQuestion.weight !== originalQuestion.weight ||
+          !!localQuestion.questionImageFile
+
+        if (questionChanged) {
+          await updateExistingQuestion()
+        } else {
+          await updateChoicesIndividually()
+        }
       } else if (sectionId) {
         // Create new question with all choices
         await createNewQuestion()
@@ -185,6 +206,11 @@ export function EditableAssessmentQuestionEditor({
 
       setHasUnsavedChanges(false)
       setOriginalChoices([...localQuestion.choices]) // Update original choices reference
+      setOriginalQuestion({
+        question: localQuestion.question,
+        questionType: localQuestion.questionType,
+        weight: localQuestion.weight
+      })
       onSaveQuestion?.()
     } catch (error) {
       console.error("Failed to save question:", error)

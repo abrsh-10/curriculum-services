@@ -46,6 +46,10 @@ export default function Home() {
           'ROLE_TRAINER': 'trainer',
           'ROLE_ME_EXPERT': 'me-expert',
         }
+        if (role === 'ROLE_ICOG_ADMIN') {
+          router.replace('/dashboard')
+          return
+        }
         if (role === 'ROLE_COMPANY_ADMIN' && companyProfileId) {
           router.replace(`/${companyProfileId}/dashboard`)
           return

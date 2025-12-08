@@ -19,12 +19,13 @@ import { useCohortSurveyLinks } from "@/lib/hooks/useCohortSurveyLinks"
 import { useSurveyLinkExport } from "@/lib/hooks/useSurveyLinkExport"
 import { useCohortAssessmentLinks } from "@/lib/hooks/useCohortAssessmentLinks"
 import { Copy, FileText, Loader2, Pencil, Upload, Download } from "lucide-react"
-import { useUploadConsentForm } from "@/lib/hooks/useStudents"
+import { useUploadConsentForm, useDeleteConsentForm } from "@/lib/hooks/useStudents"
 import { useQueryClient } from "@tanstack/react-query"
 import { cn } from "@/lib/utils"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { AddCohortStudentModal } from "./add-cohort-student-modal"
 import { Student } from "@/lib/hooks/useStudents"
+import { DeleteConsentFormDialog } from "../../../components/students/delete-consent-form-dialog"
  
 import { toast } from "sonner"
 import Image from "next/image"
@@ -48,9 +49,12 @@ interface CohortConsentFormCellProps {
 
 export const CohortConsentFormCell = ({ student, cohortId }: CohortConsentFormCellProps) => {
   const [isUploading, setIsUploading] = useReactState(false);
+  const [isDeleting, setIsDeleting] = useReactState(false);
   const [isRefreshing, setIsRefreshing] = useReactState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useReactState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { mutateAsync: uploadConsentForm } = useUploadConsentForm();
+  const { mutateAsync: deleteConsentForm } = useDeleteConsentForm();
   const queryClient = useQueryClient();
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +84,21 @@ export const CohortConsentFormCell = ({ student, cohortId }: CohortConsentFormCe
     }
   };
 
+  const handleConfirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteConsentForm(student.id);
+      // Refetch to update the UI
+      queryClient.invalidateQueries({ queryKey: ['cohortTrainees', cohortId] });
+      await queryClient.refetchQueries({ queryKey: ['cohortTrainees', cohortId] });
+      setShowDeleteDialog(false);
+    } catch (error) {
+      console.error('Error deleting consent form:', error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Turn off refreshing once the consentFormUrl becomes available from parent data
   useEffect(() => {
     if (student.consentFormUrl) {
@@ -91,15 +110,34 @@ export const CohortConsentFormCell = ({ student, cohortId }: CohortConsentFormCe
     fileInputRef.current?.click();
   };
 
-  // Determine which URL to use - prioritize signatureUrl, then consentFormUrl
-  const formUrl = student.signatureUrl || student.consentFormUrl;
+  // Check if it's a signature URL (read-only) or consent form (editable/deletable)
+  const hasSignature = !!student.signatureUrl;
+  const hasConsentForm = !!student.consentFormUrl;
+  const displayUrl = student.signatureUrl || student.consentFormUrl || undefined;
 
-  // If student already has a consent form or signature
-  if (formUrl) {
+  // If student has a signature URL (read-only - no edit, no delete)
+  if (hasSignature) {
     return (
       <div className="flex items-center gap-2">
         <a 
-          href={formUrl} 
+          href={displayUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 underline"
+        >
+          <FileText className="h-4 w-4" />
+          <span>View Signature</span>
+        </a>
+      </div>
+    );
+  }
+
+  // If student has a consent form (editable and deletable)
+  if (hasConsentForm) {
+    return (
+      <div className="flex items-center gap-2">
+        <a 
+          href={displayUrl} 
           target="_blank" 
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 underline"
@@ -121,21 +159,44 @@ export const CohortConsentFormCell = ({ student, cohortId }: CohortConsentFormCe
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={triggerFileInput}
-            disabled={isUploading}
-            className="h-8 w-8 p-0"
-            title="Edit Consent Form"
-          >
-            {isUploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Pencil className="h-4 w-4 text-gray-500" />
-            )}
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={triggerFileInput}
+              disabled={isUploading || isDeleting}
+              className="h-8 w-8 p-0"
+              title="Edit Consent Form"
+            >
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Pencil className="h-4 w-4 text-gray-500" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDeleteDialog(true)}
+              disabled={isUploading || isDeleting}
+              className="h-8 w-8 p-0"
+              title="Delete Consent Form"
+            >
+              {isDeleting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 text-red-500" />
+              )}
+            </Button>
+          </>
         )}
+        <DeleteConsentFormDialog
+          isOpen={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirmDelete={handleConfirmDelete}
+          isDeleting={isDeleting}
+          studentName={`${student.firstName} ${student.lastName}`}
+        />
       </div>
     );
   }

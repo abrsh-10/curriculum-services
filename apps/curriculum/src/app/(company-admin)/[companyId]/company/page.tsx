@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/select";
 import { useBusinessTypes } from "@/lib/hooks/useBusinessTypes";
 import { toast } from "sonner";
+import { Loading } from "@/components/ui/loading";
 
 
 const Company = () => {
@@ -50,6 +51,9 @@ const Company = () => {
 
   // Use the updated hook
   const updateCompanyProfile = useUpdateCompanyProfile();
+
+  // Fetch business types and industry types
+  const { businessTypes, industryTypes, isLoading: isLoadingBusinessTypes } = useBusinessTypes();
 
   // Watch all form values to determine if there are changes
   const formValues = watch();
@@ -120,8 +124,6 @@ const Company = () => {
     router.push(`/`);
   };
 
-  const { businessTypes, industryTypes } = useBusinessTypes();
-
   // Add a simple direct handler for the button
   const handleEditClick = async () => {
     // Check if submission should be prevented
@@ -162,6 +164,11 @@ const Company = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Show loading while fetching initial data
+  if (isFetchingCompanyProfile || isLoadingBusinessTypes) {
+    return <Loading />;
+  }
 
   return (
     <div className="lg:px-16 md:px-14 px-4 lg:mt-12 mt-6 flex flex-col gap-4">

@@ -1,12 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon, Award, Users } from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
+import { Award, Users } from "lucide-react"
 
 interface CertificateDateModalProps {
   isOpen: boolean
@@ -25,17 +23,20 @@ export function CertificateDateModal({
 }: CertificateDateModalProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
 
+  // Reset date to today when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedDate(new Date())
+    }
+  }, [isOpen])
+
   const handleConfirm = () => {
-    if (selectedDate) {
-      // Format date as YYYY-MM-DD without timezone conversion
+    if (selectedDate && !isGenerating) {
+      // Format date as YYYY-MM-DD using local date (not ISO to avoid timezone issues)
       const year = selectedDate.getFullYear()
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0')
       const day = String(selectedDate.getDate()).padStart(2, '0')
       const formattedDate = `${year}-${month}-${day}`
-      
-      console.log('Selected Date Object:', selectedDate)
-      console.log('Formatted Date (YYYY-MM-DD):', formattedDate)
-      console.log('ISO String (old method):', selectedDate.toISOString())
       
       onConfirm(formattedDate)
     }
@@ -49,21 +50,21 @@ export function CertificateDateModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[480px] max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2 text-xl">
+      <DialogContent className="sm:max-w-[420px] max-h-[85vh]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-green-100">
-              <Award className="h-5 w-5 text-green-600" />
+              <Award className="h-4 w-4 text-green-600" />
             </div>
             Generate Certificates
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4 overflow-y-auto flex-1">
+        <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
           {/* Student count info */}
-          <div className="flex items-center gap-3 p-4 rounded-lg bg-blue-50 border border-blue-100">
-            <div className="p-2 rounded-full bg-blue-100">
-              <Users className="h-5 w-5 text-blue-600" />
+          <div className="flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
+            <div className="p-1.5 rounded-full bg-blue-100">
+              <Users className="h-4 w-4 text-blue-600" />
             </div>
             <div>
               <p className="text-sm font-medium text-blue-900">
@@ -76,50 +77,34 @@ export function CertificateDateModal({
           </div>
 
           {/* Date selection */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="h-4 w-4 text-gray-500" />
-              <label className="text-sm font-medium text-gray-700">
-                Select Issue Date
-              </label>
-            </div>
-            
-            {/* Calendar */}
-            <div className="flex justify-center p-3 border rounded-lg bg-gray-50">
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">
+              Issue Date
+            </label>
+            <div className="rounded-md border border-gray-200 p-2 bg-white">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={setSelectedDate}
-                disabled={(date) => date > new Date()} // Disable future dates
-                className="rounded-md border-0"
+                disabled={(date) => date > new Date()}
+                initialFocus
               />
             </div>
-
-            {/* Selected date display */}
-            {selectedDate && (
-              <div className="flex items-center justify-between p-3 rounded-lg bg-green-50 border border-green-200">
-                <span className="text-sm text-gray-600">Selected Date:</span>
-                <span className="text-sm font-semibold text-green-700">
-                  {format(selectedDate, "MMMM dd, yyyy")}
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 flex-shrink-0 border-t pt-4 mt-2">
+        <DialogFooter className="gap-2">
           <Button
             variant="outline"
             onClick={handleClose}
             disabled={isGenerating}
-            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button
             onClick={handleConfirm}
             disabled={!selectedDate || isGenerating}
-            className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+            className="bg-green-600 hover:bg-green-700 text-white"
           >
             {isGenerating ? (
               <>
@@ -138,4 +123,3 @@ export function CertificateDateModal({
     </Dialog>
   )
 }
-

@@ -54,7 +54,10 @@ export function useGetMyCompanyProfile() {
         }
       );
       return response.data.companyProfile;
-    }
+    },
+    staleTime: 1000 * 60 * 10, // 10 minutes - company profile rarely changes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 }
 

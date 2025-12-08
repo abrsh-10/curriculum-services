@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import { useTrainingUsersByTrainingId } from "@/lib/hooks/useFetchTrainingUsers"
 import { useUserRole } from "@/lib/hooks/useUserRole"
 import { TrainingUser } from "@/types/users"
+import { Button } from "@/components/ui/button"
 
 type AssessmentType = "PRE_POST" | "CAT"
 type DurationType = "Minutes" | "Hours" | "Days"
@@ -29,6 +30,10 @@ interface AssessmentSettingsProps {
   setContentDeveloperEmail: (email: string) => void
   trainingId: string
   isEditMode?: boolean
+  onSubmit?: () => void
+  onCancel?: () => void
+  submitLabel?: string
+  isSubmitting?: boolean
 }
 
 export function AssessmentSettings({
@@ -47,7 +52,11 @@ export function AssessmentSettings({
   contentDeveloperEmail,
   setContentDeveloperEmail,
   trainingId,
-  isEditMode = false
+  isEditMode = false,
+  onSubmit,
+  onCancel,
+  submitLabel,
+  isSubmitting
 }: AssessmentSettingsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [showUserList, setShowUserList] = useState(false)
@@ -343,6 +352,28 @@ export function AssessmentSettings({
               />
             </div>
           )}
+        </div>
+      )}
+      
+      {/* Action Buttons */}
+      {onSubmit && (
+        <div className="pt-2 flex items-center gap-2">
+          {onCancel && (
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={!!isSubmitting}
+            >
+              Cancel
+            </Button>
+          )}
+          <Button
+            onClick={onSubmit}
+            disabled={!!isSubmitting}
+            className="bg-blue-600 text-white hover:bg-blue-700"
+          >
+            {isSubmitting ? (submitLabel ? submitLabel.replace("Update", "Updating...") : "Saving...") : (submitLabel || "Save")}
+          </Button>
         </div>
       )}
     </div>

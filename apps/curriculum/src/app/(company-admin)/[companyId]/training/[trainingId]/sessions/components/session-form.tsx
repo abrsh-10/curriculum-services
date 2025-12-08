@@ -599,12 +599,12 @@ export function SessionForm({ trainingId, cohortId, sessionId, onSuccess, onCanc
                                     <div key={lesson.id} className="flex items-center space-x-2">
                                       <Checkbox
                                         id={lesson.id}
-                                        checked={field.value.includes(lesson.id)}
+                                        checked={(field.value ?? []).includes(lesson.id)}
                                         onCheckedChange={(checked) => {
                                           if (checked) {
-                                            field.onChange([...field.value, lesson.id])
+                                            field.onChange([...(field.value ?? []), lesson.id])
                                           } else {
-                                            field.onChange(field.value.filter((id) => id !== lesson.id))
+                                            field.onChange((field.value ?? []).filter((id) => id !== lesson.id))
                                           }
                                         }}
                                       />
@@ -631,12 +631,12 @@ export function SessionForm({ trainingId, cohortId, sessionId, onSuccess, onCanc
                                     <div key={lesson.id} className="flex items-center space-x-2">
                                       <Checkbox
                                         id={lesson.id}
-                                        checked={field.value.includes(lesson.id)}
+                                        checked={(field.value ?? []).includes(lesson.id)}
                                         onCheckedChange={(checked) => {
                                           if (checked) {
-                                            field.onChange([...field.value, lesson.id])
+                                            field.onChange([...(field.value ?? []), lesson.id])
                                           } else {
-                                            field.onChange(field.value.filter((id) => id !== lesson.id))
+                                            field.onChange((field.value ?? []).filter((id) => id !== lesson.id))
                                           }
                                         }}
                                       />
@@ -737,7 +737,7 @@ export function SessionForm({ trainingId, cohortId, sessionId, onSuccess, onCanc
                         <FormLabel>Start Time</FormLabel>
                         <FormControl>
                           <TimePicker
-                            value={field.value}
+                            value={field.value ?? ""}
                             onChange={field.onChange}
                             placeholder="Select start time"
                           />
@@ -779,7 +779,7 @@ export function SessionForm({ trainingId, cohortId, sessionId, onSuccess, onCanc
                         <FormLabel>End Time</FormLabel>
                         <FormControl>
                           <TimePicker
-                            value={field.value}
+                            value={field.value ?? ""}
                             onChange={field.onChange}
                             placeholder="Select end time"
                           />

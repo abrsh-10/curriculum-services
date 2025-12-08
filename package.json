@@ -2,7 +2,7 @@
   "name": "curriculum-services-monorepo",
   "version": "0.1.0",
   "private": true,
-  "packageManager": "pnpm@9.6.0",
+  "packageManager": "pnpm@10.24.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "dev:curriculum": "cd apps/curriculum && PORT=3000 pnpm dev",
-    "dev:survey": "cd apps/survey-portal && PORT=3001 pnpm dev", 
+    "dev:survey": "cd apps/survey-portal && PORT=3001 pnpm dev",
     "dev:assessment": "cd apps/assessment-portal && PORT=3002 pnpm dev",
     "dev:all": "concurrently \"pnpm dev:curriculum\" \"pnpm dev:survey\" \"pnpm dev:assessment\"",
     "build": "turbo run build",
