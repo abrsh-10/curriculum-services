@@ -59,15 +59,15 @@ export function Login({ onSuccess }: LoginProps) {
 
   return (
     <>
-      <div className="flex min-h-screen">
+      <div className="flex h-screen overflow-hidden">
         <div className="flex w-full items-center justify-center bg-background p-4 lg:w-1/2">
           <div className="w-full max-w-[368px] space-y-6">
             <div className="space-y-2 text-center">
               <img
-                src="/placeholder-logo.svg"
+                src="/gheero.png"
                 alt="Logo"
-                width={40}
-                height={40}
+                width={50}
+                height={50}
                 className="mx-auto"
               />
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -131,7 +131,7 @@ export function Login({ onSuccess }: LoginProps) {
                 <button 
                   type="submit" 
                   disabled={isLoading}
-                  className="w-full rounded-md bg-brand px-4 py-4 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  className="w-full rounded-md bg-[#1D4ED8] px-4 py-4 text-sm font-medium text-white hover:bg-blue-600 disabled:opacity-50"
                 >
                   {isLoading ? 'Logging in...' : 'Log in'}
                 </button>
@@ -142,7 +142,15 @@ export function Login({ onSuccess }: LoginProps) {
           </div>
         </div>
 
-        <div className="hidden w-1/2 bg-brand lg:block" />
+        <div className="hidden w-1/2 bg-background lg:block">
+          <div className="h-full p-3">
+            <img
+              src="/leftSide.png"
+              alt="Login background"
+              className="h-full w-full object-cover rounded-xl"
+            />
+          </div>
+        </div>
       </div>
 
       <FirstTimePasswordModal
